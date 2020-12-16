@@ -25,6 +25,7 @@ def is_metaphor(token):
 
 
 # Create (S, qi, yj) triples from the VUA data, as defined in DeepMet paper. Use spacy to tokenize and get POS tags
+# One row for each token
 def create_vua_dataframe():
     df_raw = pd.read_csv(vua_train, encoding='windows-1252').dropna()
 
@@ -58,7 +59,37 @@ def create_vua_dataframe():
     return df_out
 
 
+# Create (S, qi, yj) triples from the VUA data, as defined in DeepMet paper. Use spacy to tokenize and get POS tags
+# One row for each sentence
+def create_vua_dataframe_compact():
+    df_raw = pd.read_csv(vua_train, encoding='windows-1252').dropna()
+
+    metaphors = []
+    sentences = []
+    for index, row in df_raw.iterrows():
+        metaphors.append([is_metaphor(token) for token in row['sentence_txt'].split()])
+        sentences.append(re.sub('M_', '', row['sentence_txt']))
+
+    tokens = []
+    coarse_pos_tags = []
+    fine_pos_tags = []
+    for doc in nlp.pipe(sentences, disable=['ner']):
+        tokens.append(list(doc))
+        coarse_pos_tags.append(list(doc.to_array('pos')))
+        fine_pos_tags.append(list(doc.to_array('tag')))
+
+    sentence_ids = [txt_id + '_' + sentence_id for txt_id, sentence_id in zip(df_raw['txt_id'], df_raw['sentence_id'])]
+
+    df_out = pd.DataFrame(np.array([sentences, tokens, metaphors, coarse_pos_tags, fine_pos_tags], dtype=object).T,
+                          columns=['sentence', 'tokens', 'metaphors', 'pos', 'fgpos'],
+                          index=sentence_ids)
+    df_out.index.names = ['sentence_id']
+
+    return df_out
+
+
 # Create (S, qi, yj) triples from the TOEFL data, as defined in DeepMet paper. Use spacy to tokenize and get POS tags
+# One row for each token
 def create_toefl_dataframe():
     tokens = []
     metaphors = []
@@ -91,10 +122,45 @@ def create_toefl_dataframe():
     return df_out
 
 
+# Create (S, qi, yj) triples from the TOEFL data, as defined in DeepMet paper. Use spacy to tokenize and get POS tags
+# One row for each sentence
+def create_toefl_dataframe_compact():
+    metaphors = []
+    sentences = []
+    sentence_ids = []
+    tokens = []
+    coarse_pos_tags = []
+    fine_pos_tags = []
+
+    for (root, _, filenames) in os.walk(toefl_train):
+        for filename in filenames:
+            with open(root + '/' + filename, 'r') as file:
+                sentence_num = 1
+                for row in file:
+                    metaphors.append([is_metaphor(token) for token in row.strip().split()])
+                    sentences.append(re.sub('M_', '', row.strip()))
+                    sentence_ids.append(filename[:-4] + '_' + str(sentence_num))
+                    sentence_num += 1
+                file.seek(0)
+                for doc in nlp.pipe([re.sub('M_', '', sentence.strip()) for sentence in file], disable=['ner']):
+                    tokens.append(list(doc))
+                    coarse_pos_tags.append(list(doc.to_array('pos')))
+                    fine_pos_tags.append(list(doc.to_array('tag')))
+
+    df_out = pd.DataFrame(np.array([sentences, tokens, metaphors, coarse_pos_tags, fine_pos_tags], dtype=object).T,
+                          columns=['sentence', 'tokens', 'metaphors', 'pos', 'fgpos'],
+                          index=sentence_ids)
+    df_out.index.names = ['sentence_id']
+
+    return df_out
+
+
 # Preprocess data into (S, qi, yj) triples
 def main():
     df_vua_train = create_vua_dataframe()
     df_toefl_train = create_toefl_dataframe()
+    df_vua_train_compact = create_vua_dataframe_compact()
+    df_toefl_train_compact = create_toefl_dataframe_compact()
 
     # Make sure we've read the VUA dataset correctly by comparing to the gold labels
     df_vua_train_gold = pd.read_csv(vua_train_gold, header=None, names=['token_id', 'metaphor'], index_col='token_id')
@@ -104,6 +170,8 @@ def main():
 
     df_vua_train.to_csv("../data/VUA/vua_train_tokenized.csv")
     df_toefl_train.to_csv("../data/TOEFL/toefl_train_tokenized.csv")
+    df_vua_train_compact.to_csv("../data/VUA/vua_train_tokenized_compact.csv", sep=';')
+    df_toefl_train_compact.to_csv("../data/TOEFL/toefl_train_tokenized_compact.csv", sep=';')
 
 
 if __name__ == '__main__':
