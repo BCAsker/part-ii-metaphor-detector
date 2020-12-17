@@ -35,22 +35,30 @@ def create_vua_dataframe():
 
     tokens = []
     token_ids = []
-    course_tags = []
-    fine_tags = []
+    course_pos_tags = []
+    fine_pos_tags = []
     sentences = []
+    local_contexts = []
+
     for doc, text_id, sentence_id in zip(
             nlp.pipe([re.sub('M_', '', sentence) for sentence in df_raw['sentence_txt']], disable=['ner']),
             df_raw['txt_id'], df_raw['sentence_id']):
 
+        split_sentence = str(doc).split(',')
+        split_index = 0
+
         for offset, token in zip(range(1, len(doc) + 1), doc):
             tokens.append(token.text)
             token_ids.append(text_id + '_' + sentence_id + '_' + str(offset))
-            course_tags.append(token.pos_)
-            fine_tags.append(token.tag_)
+            course_pos_tags.append(token.pos_)
+            fine_pos_tags.append(token.tag_)
             sentences.append(str(doc))
+            local_contexts.append(split_sentence[split_index])
+            if token.text == ',':
+                split_index += 1
 
-    df_out = pd.DataFrame(np.array([sentences, tokens, metaphors, course_tags, fine_tags]).T,
-                          columns=['sentence', 'query', 'metaphor', 'pos', 'fgpos'],
+    df_out = pd.DataFrame(np.array([sentences, local_contexts, tokens, metaphors, course_pos_tags, fine_pos_tags]).T,
+                          columns=['sentence', 'local', 'query', 'metaphor', 'pos', 'fgpos'],
                           index=token_ids)
     df_out.index.names = ['token_id']
 
@@ -92,9 +100,10 @@ def create_toefl_dataframe():
     tokens = []
     metaphors = []
     token_ids = []
-    course_tags = []
-    fine_tags = []
+    course_pos_tags = []
+    fine_pos_tags = []
     sentences = []
+    local_contexts = []
 
     for (root, _, filenames) in os.walk(toefl_train):
         for filename in filenames:
@@ -103,16 +112,21 @@ def create_toefl_dataframe():
                 file.seek(0)
                 sentence_id = 1
                 for doc in nlp.pipe([re.sub('M_', '', sentence.strip()) for sentence in file], disable=['ner']):
+                    split_sentence = str(doc).split(',')
+                    split_index = 0
                     for offset, token in zip(range(1, len(doc) + 1), doc):
                         tokens.append(token.text)
                         token_ids.append(filename[:-4] + '_' + str(sentence_id) + '_' + str(offset))
-                        course_tags.append(token.pos_)
-                        fine_tags.append(token.tag_)
+                        course_pos_tags.append(token.pos_)
+                        fine_pos_tags.append(token.tag_)
                         sentences.append(str(doc))
+                        local_contexts.append(split_sentence[split_index])
+                        if token.text == ',':
+                            split_index += 1
                     sentence_id += 1
 
-    df_out = pd.DataFrame(np.array([sentences, tokens, metaphors, course_tags, fine_tags]).T,
-                          columns=['sentence', 'query', 'metaphor', 'pos', 'fgpos'],
+    df_out = pd.DataFrame(np.array([sentences, local_contexts, tokens, metaphors, course_pos_tags, fine_pos_tags]).T,
+                          columns=['sentence', 'local', 'query', 'metaphor', 'pos', 'fgpos'],
                           index=token_ids)
     df_out.index.names = ['token_id']
 
