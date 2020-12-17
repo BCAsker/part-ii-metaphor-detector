@@ -45,16 +45,14 @@ def create_vua_dataframe():
         for offset, token in zip(range(1, len(doc) + 1), doc):
             tokens.append(token.text)
             token_ids.append(text_id + '_' + sentence_id + '_' + str(offset))
-            course_tags.append(token.pos)
-            fine_tags.append(token.tag)
+            course_tags.append(token.pos_)
+            fine_tags.append(token.tag_)
             sentences.append(str(doc))
 
     df_out = pd.DataFrame(np.array([sentences, tokens, metaphors, course_tags, fine_tags]).T,
                           columns=['sentence', 'query', 'metaphor', 'pos', 'fgpos'],
                           index=token_ids)
-
     df_out.index.names = ['token_id']
-    df_out[['metaphor', 'pos', 'fgpos']] = df_out[['metaphor', 'pos', 'fgpos']].apply(pd.to_numeric)
 
     return df_out
 
@@ -75,8 +73,8 @@ def create_vua_dataframe_compact():
     fine_pos_tags = []
     for doc in nlp.pipe(sentences, disable=['ner']):
         tokens.append(list(doc))
-        coarse_pos_tags.append(list(doc.to_array('pos')))
-        fine_pos_tags.append(list(doc.to_array('tag')))
+        coarse_pos_tags.append([doc.vocab.strings[pos] for pos in doc.to_array('pos')])
+        fine_pos_tags.append([doc.vocab.strings[tag] for tag in doc.to_array('tag')])
 
     sentence_ids = [txt_id + '_' + sentence_id for txt_id, sentence_id in zip(df_raw['txt_id'], df_raw['sentence_id'])]
 
@@ -108,8 +106,8 @@ def create_toefl_dataframe():
                     for offset, token in zip(range(1, len(doc) + 1), doc):
                         tokens.append(token.text)
                         token_ids.append(filename[:-4] + '_' + str(sentence_id) + '_' + str(offset))
-                        course_tags.append(token.pos)
-                        fine_tags.append(token.tag)
+                        course_tags.append(token.pos_)
+                        fine_tags.append(token.tag_)
                         sentences.append(str(doc))
                     sentence_id += 1
 
@@ -117,7 +115,6 @@ def create_toefl_dataframe():
                           columns=['sentence', 'query', 'metaphor', 'pos', 'fgpos'],
                           index=token_ids)
     df_out.index.names = ['token_id']
-    df_out[['metaphor', 'pos', 'fgpos']] = df_out[['metaphor', 'pos', 'fgpos']].apply(pd.to_numeric)
 
     return df_out
 
@@ -144,8 +141,8 @@ def create_toefl_dataframe_compact():
                 file.seek(0)
                 for doc in nlp.pipe([re.sub('M_', '', sentence.strip()) for sentence in file], disable=['ner']):
                     tokens.append(list(doc))
-                    coarse_pos_tags.append(list(doc.to_array('pos')))
-                    fine_pos_tags.append(list(doc.to_array('tag')))
+                    coarse_pos_tags.append([doc.vocab.strings[pos] for pos in doc.to_array('pos')])
+                    fine_pos_tags.append([doc.vocab.strings[tag] for tag in doc.to_array('tag')])
 
     df_out = pd.DataFrame(np.array([sentences, tokens, metaphors, coarse_pos_tags, fine_pos_tags], dtype=object).T,
                           columns=['sentence', 'tokens', 'metaphors', 'pos', 'fgpos'],
@@ -165,7 +162,7 @@ def main():
     # Make sure we've read the VUA dataset correctly by comparing to the gold labels
     df_vua_train_gold = pd.read_csv(vua_train_gold, header=None, names=['token_id', 'metaphor'], index_col='token_id')
     df_vua_train_gold.sort_index(inplace=True)
-    vua_labels_from_text = df_vua_train.loc[df_vua_train_gold.index, 'metaphor']
+    vua_labels_from_text = df_vua_train.loc[df_vua_train_gold.index, 'metaphor'].apply(pd.to_numeric)
     assert np.all(vua_labels_from_text.values == df_vua_train_gold['metaphor'])
 
     df_vua_train.to_csv("../data/VUA/vua_train_tokenized.csv")
