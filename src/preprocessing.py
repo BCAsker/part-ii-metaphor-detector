@@ -44,7 +44,7 @@ def create_vua_dataframe():
             nlp.pipe([re.sub('M_', '', sentence) for sentence in df_raw['sentence_txt']], disable=['ner']),
             df_raw['txt_id'], df_raw['sentence_id']):
 
-        split_sentence = str(doc).split(',')
+        split_sentence = str(doc).split(', ')
         split_index = 0
 
         for offset, token in zip(range(1, len(doc) + 1), doc):
@@ -112,7 +112,7 @@ def create_toefl_dataframe():
                 file.seek(0)
                 sentence_id = 1
                 for doc in nlp.pipe([re.sub('M_', '', sentence.strip()) for sentence in file], disable=['ner']):
-                    split_sentence = str(doc).split(',')
+                    split_sentence = str(doc).split(', ')
                     split_index = 0
                     for offset, token in zip(range(1, len(doc) + 1), doc):
                         tokens.append(token.text)
