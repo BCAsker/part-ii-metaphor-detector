@@ -14,7 +14,8 @@ def prepare_inputs(df):
     global_context_tokenized = tokenizer(list(global_context_input),
                                          add_special_tokens=True, padding=True, return_tensors='pt')
     local_context_tokenized = tokenizer(list(local_context_input),
-                                        add_special_tokens=True, padding=True, return_tensors='pt')
+                                        add_special_tokens=True, padding='max_length', return_tensors='pt',
+                                        max_length=global_context_tokenized['input_ids'].size()[1])
 
     global_token_type_ids = torch.zeros(global_context_tokenized['input_ids'].size(), dtype=torch.long)
     local_token_type_ids = torch.zeros(local_context_tokenized['input_ids'].size(), dtype=torch.long)
