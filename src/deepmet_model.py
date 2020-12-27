@@ -33,28 +33,17 @@ class DeepMet(nn.Module):
         # Transformer encoder
         global_intermediate = self.transformer_encoder(global_intermediate.last_hidden_state)
         local_intermediate = self.transformer_encoder(local_intermediate.last_hidden_state)
-        print(global_intermediate.size())
 
         # Average pooling
         global_intermediate = global_intermediate.permute(0, 2, 1)
         local_intermediate = local_intermediate.permute(0, 2, 1)
-        print(global_intermediate.size())
-
         global_intermediate = self.average_pool_a(global_intermediate).squeeze(dim=2)
         local_intermediate = self.average_pool_b(local_intermediate).squeeze(dim=2)
-        print(global_intermediate.size())
 
         # Metaphor discrimination
         out = torch.cat((global_intermediate, local_intermediate), dim=1)
-        print(out.size())
-
         out = self.dropout(out)
-        print(out.size())
-
         out = self.discriminator(out)
-        print(out.size())
-
         out = self.softmax(out)
-        print(out.size())
 
         return out
