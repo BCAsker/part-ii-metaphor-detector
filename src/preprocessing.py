@@ -7,11 +7,16 @@ from spacy.tokenizer import Tokenizer
 
 vua_train = "../data/VUA/vuamc_corpus_train.csv"
 vua_test = "../data/VUA/vuamc_corpus_test.csv"
-vua_train_gold = "../data/VUA/naacl_flp_train_gold_labels/all_pos_tokens.csv"
-vua_test_gold = "../data/VUA/naacl_flp_test_gold_labels/all_pos_tokens.csv"
+vua_allpos_train_gold = "../data/VUA/naacl_flp_train_gold_labels/all_pos_tokens.csv"
+vua_allpos_test_gold = "../data/VUA/naacl_flp_test_gold_labels/all_pos_tokens.csv"
+vua_verb_train_gold = "../data/VUA/naacl_flp_train_gold_labels/verb_tokens.csv"
+vua_verb_test_gold = "../data/VUA/naacl_flp_test_gold_labels/verb_tokens.csv"
 
 toefl_train = "../data/TOEFL/toefl_sharedtask_dataset/essays"
 toefl_test = "../data/TOEFL/toefl_sharedtask_evaluation_kit/essays_with_labels"
+toefl_train_required = "../data/TOEFL/toefl_skll_train_features/features/all_pos/P.jsonlines"
+toefl_allpos_test_required = "../data/TOEFL/toefl_sharedtask_evaluation_kit/toefl_all_pos_test_tokens.csv"
+toefl_verb_test_required = "../data/TOEFL/toefl_sharedtask_evaluation_kit/toefl_verb_test_tokens.csv"
 
 nlp = spacy.load("en_core_web_sm")
 # Use a blank tokenizer. Provides the same tokenization as string.split(), which is the format used for the shared task
@@ -65,12 +70,17 @@ def create_vua_train_dataframe():
                           index=token_ids)
     df_out.index.names = ['token_id']
 
+    # Get the tokens with the correct POS, etc. for training from the given file
+    df_required = pd.read_csv(vua_allpos_train_gold, encoding='windows-1252', header=None, names=['metaphor']).dropna()
+    df_required.index.names = ['token_id']
+    df_out = df_out.loc[df_required.index]
+
     return df_out
 
 
 # Create (S, qi, yj) triples from the VUA data, as defined in DeepMet paper. Use spacy to tokenize and get POS tags
 # One row for each token
-def create_vua_test_dataframe():
+def create_vua_test_dataframe(is_verb_task=False):
     df_raw = pd.read_csv(vua_test, encoding='windows-1252').dropna()
 
     tokens = []
@@ -101,7 +111,8 @@ def create_vua_test_dataframe():
                           index=token_ids)
     df_out.index.names = ['token_id']
 
-    df_metaphor = pd.read_csv(vua_test_gold, encoding='windows-1252', header=None, names=['metaphor']).dropna()
+    required_file = vua_verb_test_gold if is_verb_task else vua_allpos_test_gold
+    df_metaphor = pd.read_csv(required_file, encoding='windows-1252', header=None, names=['metaphor']).dropna()
 
     df_out = df_out.join(df_metaphor)
     df_out = df_out[df_out['metaphor'].notna()]
@@ -175,12 +186,16 @@ def create_toefl_train_dataframe():
                           index=token_ids)
     df_out.index.names = ['token_id']
 
+    df_required = pd.read_json(toefl_train_required, lines=True)
+    required_ids = ['_'.join((token_id.split('_')[:-1])) for token_id in df_required['id']]
+    df_out = df_out.loc[required_ids]
+
     return df_out
 
 
 # Create (S, qi, yj) triples from the TOEFL data, as defined in DeepMet paper. Use spacy to tokenize and get POS tags
 # One row for each token
-def create_toefl_test_dataframe():
+def create_toefl_test_dataframe(is_verb_task=False):
     tokens = []
     metaphors = []
     token_ids = []
@@ -213,6 +228,11 @@ def create_toefl_test_dataframe():
                           columns=['sentence', 'local', 'query', 'metaphor', 'pos', 'fgpos'],
                           index=token_ids)
     df_out.index.names = ['token_id']
+
+    required_file = toefl_verb_test_required if is_verb_task else toefl_allpos_test_required
+    df_required = pd.read_csv(required_file, header=None, names=['id']).dropna()
+    required_ids = ['_'.join((token_id.split('_')[:-1])) for token_id in df_required['id']]
+    df_out = df_out.loc[required_ids]
 
     return df_out
 
@@ -253,20 +273,24 @@ def create_toefl_dataframe_compact():
 # Preprocess data into (S, qi, yj) triples
 def main():
     df_vua_train = create_vua_train_dataframe()
-    df_vua_test = create_vua_test_dataframe()
+    df_vua_test_verb = create_vua_test_dataframe(is_verb_task=True)
+    df_vua_test_allpos = create_vua_test_dataframe(is_verb_task=False)
     df_toefl_train = create_toefl_train_dataframe()
-    df_toefl_test = create_toefl_test_dataframe()
+    df_toefl_test_verb = create_toefl_test_dataframe(is_verb_task=True)
+    df_toefl_test_allpos = create_toefl_test_dataframe(is_verb_task=False)
 
     # Make sure we've read the VUA dataset correctly by comparing to the gold labels
-    df_vua_train_gold = pd.read_csv(vua_train_gold, header=None, names=['token_id', 'metaphor'], index_col='token_id')
+    df_vua_train_gold = pd.read_csv(vua_allpos_train_gold, header=None, names=['token_id', 'metaphor'], index_col='token_id')
     df_vua_train_gold.sort_index(inplace=True)
     vua_labels_from_text = df_vua_train.loc[df_vua_train_gold.index, 'metaphor'].apply(pd.to_numeric)
     assert np.all(vua_labels_from_text.values == df_vua_train_gold['metaphor'])
 
     df_vua_train.to_csv("../data/VUA/vua_train_tokenized.csv")
-    df_vua_test.to_csv("../data/VUA/vua_test_tokenized.csv")
+    df_vua_test_verb.to_csv("../data/VUA/vua_test_verb_tokenized.csv")
+    df_vua_test_allpos.to_csv("../data/VUA/vua_test_allpos_tokenized.csv")
     df_toefl_train.to_csv("../data/TOEFL/toefl_train_tokenized.csv")
-    df_toefl_test.to_csv("../data/TOEFL/toefl_test_tokenized.csv")
+    df_toefl_test_verb.to_csv("../data/TOEFL/toefl_test_verb_tokenized.csv")
+    df_toefl_test_allpos.to_csv("../data/TOEFL/toefl_test_allpos_tokenized.csv")
 
 
 if __name__ == '__main__':

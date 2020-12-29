@@ -5,17 +5,25 @@ import pandas as pd
 batch_size = 64
 
 
-def prepare_inputs(df):
+def prepare_inputs(df, max_length):
     global_context_input = df['sentence'] + " </s> " + df['query'] + " </s> " + df['pos'] + " </s> " + df['fgpos']
     local_context_input = df['local'] + " </s> " + df['query'] + " </s> " + df['pos'] + " </s> " + df['fgpos']
 
     tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
     # We've added the intermediate separator tokens, but let the tokenizer handle the start, end and padding tokens
-    global_context_tokenized = tokenizer(list(global_context_input),
-                                         add_special_tokens=True, padding=True, return_tensors='pt')
-    local_context_tokenized = tokenizer(list(local_context_input),
-                                        add_special_tokens=True, padding='max_length', return_tensors='pt',
-                                        max_length=global_context_tokenized['input_ids'].size()[1])
+    if max_length <= 0:
+        global_context_tokenized = tokenizer(list(global_context_input),
+                                             add_special_tokens=True, padding=True, return_tensors='pt')
+        local_context_tokenized = tokenizer(list(local_context_input),
+                                            add_special_tokens=True, padding='max_length', return_tensors='pt',
+                                            max_length=global_context_tokenized['input_ids'].size()[1])
+    else:
+        global_context_tokenized = tokenizer(list(global_context_input),
+                                             add_special_tokens=True, padding='max_length', return_tensors='pt',
+                                             max_length=max_length)
+        local_context_tokenized = tokenizer(list(local_context_input),
+                                            add_special_tokens=True, padding='max_length', return_tensors='pt',
+                                            max_length=max_length)
 
     global_token_type_ids = torch.zeros(global_context_tokenized['input_ids'].size(), dtype=torch.long)
     local_token_type_ids = torch.zeros(local_context_tokenized['input_ids'].size(), dtype=torch.long)
