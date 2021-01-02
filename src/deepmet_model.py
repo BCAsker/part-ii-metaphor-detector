@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers import RobertaModel, RobertaConfig
+from transformers import RobertaModel
 
 
 class DeepMet(nn.Module):
