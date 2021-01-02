@@ -18,7 +18,7 @@ def loss_function(estimate_metaphors, estimate_literals, targets, is_verb_task):
     return l0 * int(is_verb_task) + l1 * (1 - int(is_verb_task))
 
 
-def train(train_dataset, model, optimizer, epoch):
+def train(train_dataset, model, optimizer, epoch, is_verb_task):
     model.train()
     start = time.time()
 
@@ -27,12 +27,13 @@ def train(train_dataset, model, optimizer, epoch):
     for i_batch, sample_batched in enumerate(dataloader):
         optimizer.zero_grad()
         output = model(*sample_batched[1:7])
-        loss = loss_function(output[:, 1], output[:, 0], sample_batched[0], False)
+        loss = loss_function(output[:, 1], output[:, 0], sample_batched[0], is_verb_task)
         loss.backward()
         optimizer.step()
 
-        if i_batch % 500 == 0:
+        if i_batch % 1000 == 0:
             print("Epoch: " + str(epoch) +
+                  (" Verb" if is_verb_task else " All Pos") +
                   ", Batch: " + str(i_batch) +
                   "/" + str(len(train_dataset) // batch_size + (1 if len(train_dataset) % batch_size > 0 else 0)) +
                   ", Time elapsed: " + str(time.time() - start))
@@ -94,22 +95,26 @@ def main():
     pd.set_option("display.width", 0)
 
     # Load the dataframes containing the raw inputs for our embedding layer
-    df_train_vua = pd.read_csv('../data/VUA/vua_train_tokenized.csv', index_col='token_id').dropna()
-    df_train_toefl = pd.read_csv('../data/TOEFL/toefl_train_tokenized.csv', index_col='token_id').dropna()
-    df_test_vua_verb = pd.read_csv('../data/VUA/vua_test_verb_tokenized.csv', index_col='token_id').dropna()
-    df_test_vua_allpos = pd.read_csv('../data/VUA/vua_test_allpos_tokenized.csv', index_col='token_id').dropna()
-    df_test_toefl_verb = pd.read_csv('../data/TOEFL/toefl_test_verb_tokenized.csv', index_col='token_id').dropna()
-    df_test_toefl_allpos = pd.read_csv('../data/TOEFL/toefl_test_allpos_tokenized.csv', index_col='token_id').dropna()
-    df_train = pd.concat([df_train_vua, df_train_toefl])
+    df_train_vua_verb = pd.read_csv("../data/VUA/train_vua_verb_tokenized.csv", index_col='token_id').dropna()
+    df_train_vua_allpos = pd.read_csv("../data/VUA/train_vua_allpos_tokenized.csv", index_col='token_id').dropna()
+    df_test_vua_verb = pd.read_csv("../data/VUA/test_vua_verb_tokenized.csv", index_col='token_id').dropna()
+    df_test_vua_allpos = pd.read_csv("../data/VUA/test_vua_allpos_tokenized.csv", index_col='token_id').dropna()
+    df_train_toefl_verb = pd.read_csv("../data/TOEFL/train_toefl_verb_tokenized.csv", index_col='token_id').dropna()
+    df_train_toefl_allpos = pd.read_csv("../data/TOEFL/train_toefl_allpos_tokenized.csv", index_col='token_id').dropna()
+    df_test_toefl_verb = pd.read_csv("../data/TOEFL/test_toefl_verb_tokenized.csv", index_col='token_id').dropna()
+    df_test_toefl_allpos = pd.read_csv("../data/TOEFL/test_toefl_allpos_tokenized.csv", index_col='token_id').dropna()
+    df_train_verb = pd.concat([df_train_vua_verb, df_train_toefl_verb])
+    df_train_allpos = pd.concat([df_train_vua_allpos, df_train_toefl_allpos])
 
-    train_prepared = Prepared('train', df_train)
+    train_verb_prepared = Prepared('train_verb', df_train_verb)
+    train_allpos_prepared = Prepared('train_allpos', df_train_allpos)
     test_vua_verb_prepared = Prepared('test_vua_verb', df_test_vua_verb)
     test_vua_allpos_prepared = Prepared('test_vua_allpos', df_test_vua_allpos)
     test_toefl_verb_prepared = Prepared('test_toefl_verb', df_test_toefl_verb)
     test_toefl_allpos_prepared = Prepared('test_toefl_allpos', df_test_toefl_allpos)
 
-    all_prepared = (train_prepared, test_vua_verb_prepared, test_vua_allpos_prepared, test_toefl_verb_prepared,
-                    test_toefl_allpos_prepared)
+    all_prepared = (train_verb_prepared, train_allpos_prepared, test_vua_verb_prepared, test_vua_allpos_prepared,
+                    test_toefl_verb_prepared, test_toefl_allpos_prepared)
 
     # Make sure all inputs are of the same length
     max_length = max([prepared.length for prepared in all_prepared])
@@ -131,7 +136,8 @@ def main():
 
     # 0 = metaphor, 1 = input_ids_a, 2 = att_mask_a, 3 = tok_type_ids_a, 4 = input_ids_b, 5 = att_mask_b,
     # 6 = tok_type_ids_b
-    training_dataset = torch.utils.data.TensorDataset(*train_prepared.get_tensors())
+    train_verb_dataset = torch.utils.data.TensorDataset(*train_verb_prepared.get_tensors())
+    train_allpos_dataset = torch.utils.data.TensorDataset(*train_allpos_prepared.get_tensors())
     test_vua_verb_dataset = torch.utils.data.TensorDataset(*test_vua_verb_prepared.get_tensors())
     test_vua_allpos_dataset = torch.utils.data.TensorDataset(*test_vua_allpos_prepared.get_tensors())
     test_toefl_verb_dataset = torch.utils.data.TensorDataset(*test_toefl_verb_prepared.get_tensors())
@@ -140,7 +146,8 @@ def main():
 
     print("Entering train")
     for epoch in range(epochs):
-        model = train(training_dataset, model, optimizer, epoch)
+        model = train(train_verb_dataset, model, optimizer, epoch, True)
+        model = train(train_allpos_dataset, model, optimizer, epoch, False)
     print("Done training!")
 
     torch.save(model.state_dict(), "../data/deepmet_model_1_1.model")
@@ -148,16 +155,17 @@ def main():
 
     # model.load_state_dict(torch.load("../data/deepmet_model_1.model"))
 
-    print("vua verb evaluate")
+    print()
+    print("VUA Verb evaluate")
     evaluate(test_vua_verb_dataset, model)
     print()
-    print("vua allpos evaluate")
+    print("VUA All POS evaluate")
     evaluate(test_vua_allpos_dataset, model)
     print()
-    print("toefl verb evaluate")
+    print("TOEFL Verb evaluate")
     evaluate(test_toefl_verb_dataset, model)
     print()
-    print("toefl allpos evaluate")
+    print("TOEFL All POS evaluate")
     evaluate(test_toefl_allpos_dataset, model)
     print()
 
