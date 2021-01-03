@@ -5,7 +5,7 @@ from prepared_input import Prepared
 import deepmet_model
 import time
 
-batch_size = 4
+batch_size = 8
 epochs = 3
 learning_rate = 0.00001
 metaphor_preference_parameter = 0.2
