@@ -1,5 +1,7 @@
 import torch
+import numpy as np
 import os
+import random
 from transformers import RobertaTokenizer
 
 
@@ -81,9 +83,16 @@ class Prepared:
         self.local_token_type_ids = torch.zeros(local_context_tokenized['input_ids'].size(), dtype=torch.long)
         self.length = len(self.global_input_ids[0])
 
-    def get_tensors(self):
-        return self.metaphor_labels, self.global_input_ids, self.global_attention_mask, self.global_token_type_ids, \
+    # 0 = metaphor, 1 = input_ids_a, 2 = att_mask_a, 3 = tok_type_ids_a, 4 = input_ids_b, 5 = att_mask_b,
+    # 6 = tok_type_ids_b
+    def get_tensors(self, index=None):
+        if None:
+            return self.metaphor_labels, self.global_input_ids, self.global_attention_mask, self.global_token_type_ids,\
                self.local_input_ids, self.local_attention_mask, self.local_token_type_ids
+        else:
+            return self.metaphor_labels[index], self.global_input_ids[index], self.global_attention_mask[index], \
+                   self.global_token_type_ids[index], self.local_input_ids[index], self.local_attention_mask[index], \
+                   self.local_token_type_ids[index]
 
     def to_device(self, device):
         self.metaphor_labels = self.metaphor_labels.to(device)
@@ -94,3 +103,26 @@ class Prepared:
         self.local_attention_mask = self.local_attention_mask.to(device)
         self.local_token_type_ids = self.local_token_type_ids.to(device)
 
+    def to_folds(self, num_folds):
+        # Split into metaphor and literal for stratified cross validation
+        metaphor_indices = list(np.where(self.metaphor_labels.cpu().numpy() == 1)[0])
+        literal_indices = list(np.where(self.metaphor_labels.cpu().numpy() == 0)[0])
+
+        met_size = len(metaphor_indices) // num_folds
+        lit_size = len(literal_indices) // num_folds
+
+        met_rem = len(metaphor_indices) % num_folds
+        lit_rem = len(literal_indices) % num_folds
+
+        folds_indices = [[] for _ in range(num_folds)]
+        for i in range(num_folds):
+            # By starting from the back with the literals, we can make sure that the longest metaphor and literal folds
+            # don't get added together
+            folds_indices[i].extend(random.sample(metaphor_indices, k=met_size + (1 if met_rem > 0 else 0)))
+            folds_indices[num_folds-i-1].extend(random.sample(literal_indices, k=lit_size + (1 if lit_rem > 0 else 0)))
+
+            met_rem -= (1 if met_rem > 0 else 0)
+            lit_rem -= (1 if lit_rem > 0 else 0)
+
+        [random.shuffle(fold) for fold in folds_indices]
+        return [self.get_tensors(fold) for fold in folds_indices]
