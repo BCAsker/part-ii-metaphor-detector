@@ -5,7 +5,7 @@ from transformers import RobertaModel
 
 class DeepMet(nn.Module):
 
-    def __init__(self, num_tokens, num_encoder_inputs, num_encoder_heads, num_encoder_layers, num_encoder_hidden_states, dropout_rate):
+    def __init__(self, num_tokens, dropout_rate):
         super(DeepMet, self).__init__()
 
         # Use the same transformer encoder for both, since we want to use the same weights
@@ -16,7 +16,7 @@ class DeepMet(nn.Module):
 
         # Metaphor discrimination layer
         self.dropout = nn.Dropout(dropout_rate)
-        self.discriminator = nn.Linear(2 * num_encoder_hidden_states, 2)
+        self.discriminator = nn.Linear(2 * 768, 2)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, global_input_ids, global_attention_mask, global_token_type_ids, local_input_ids,

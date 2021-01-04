@@ -122,12 +122,7 @@ def main():
         if prepared.length != max_length:
             prepared.prepare_inputs(max_length)
 
-    model = deepmet_model.DeepMet(num_tokens=max_length,
-                                  num_encoder_inputs=768,
-                                  num_encoder_heads=2,
-                                  num_encoder_layers=2,
-                                  num_encoder_hidden_states=768,
-                                  dropout_rate=0.2)
+    model = deepmet_model.DeepMet(num_tokens=max_length, dropout_rate=0.2)
 
     if torch.cuda.is_available():
         for prepared in all_prepared:
