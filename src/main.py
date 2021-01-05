@@ -18,11 +18,10 @@ def loss_function(estimate_metaphors, estimate_literals, targets, is_verb_task):
     return l0 * int(is_verb_task) + l1 * (1 - int(is_verb_task))
 
 
-def train(train_dataset, model, optimizer, epoch, is_verb_task):
+def train(train_dataset, model, optimizer, epoch, is_verb_task, start_time):
     model.train()
-    start = time.time()
 
-    dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size)
+    dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
     for i_batch, sample_batched in enumerate(dataloader):
         optimizer.zero_grad()
@@ -36,7 +35,7 @@ def train(train_dataset, model, optimizer, epoch, is_verb_task):
                   (" Verb" if is_verb_task else " All Pos") +
                   ", Batch: " + str(i_batch) +
                   "/" + str(len(train_dataset) // batch_size + (1 if len(train_dataset) % batch_size > 0 else 0)) +
-                  ", Time elapsed: " + str(time.time() - start))
+                  ", Time elapsed: " + str(time.time() - start_time))
 
     return model
 
@@ -140,12 +139,13 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     print("Entering train")
+    start = time.time()
     for epoch in range(epochs):
-        model = train(train_verb_dataset, model, optimizer, epoch, True)
-        model = train(train_allpos_dataset, model, optimizer, epoch, False)
+        model = train(train_verb_dataset, model, optimizer, epoch, True, start)
+        model = train(train_allpos_dataset, model, optimizer, epoch, False, start)
     print("Done training!")
 
-    torch.save(model.state_dict(), "../data/deepmet_model_1_1.model")
+    torch.save(model.state_dict(), "../data/deepmet_model_1_2.model")
     print("Model saved!")
 
     # model.load_state_dict(torch.load("../data/deepmet_model_1.model"))
