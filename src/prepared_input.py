@@ -86,7 +86,7 @@ class Prepared:
     # 0 = metaphor, 1 = input_ids_a, 2 = att_mask_a, 3 = tok_type_ids_a, 4 = input_ids_b, 5 = att_mask_b,
     # 6 = tok_type_ids_b
     def get_tensors(self, index=None):
-        if None:
+        if index is None:
             return self.metaphor_labels, self.global_input_ids, self.global_attention_mask, self.global_token_type_ids,\
                self.local_input_ids, self.local_attention_mask, self.local_token_type_ids
         else:

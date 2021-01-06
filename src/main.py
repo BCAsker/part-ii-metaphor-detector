@@ -107,25 +107,23 @@ def multi_evaluate(eval_dataset, models):
 
     probs = [[] for _ in range(len(models))]
     with torch.no_grad():
-        for j_model, model in enumerate(models):
+        for i_model in range(len(models)):
+            if torch.cuda.is_available():
+                models[i_model] = models[i_model].to(torch.device(0))
+
             for i_batch, sample_batched in enumerate(dataloader):
-
-                if torch.cuda.is_available():
-                    model = model.to(torch.device(0))
-
-                output = model(*sample_batched[1:7])
-
-                # Clear up GPU memory
-                if torch.cuda.is_available():
-                    model.cpu()
-
-                probs[j_model].append(output)
+                output = (models[i_model])(*(sample_batched[1:7]))
+                probs[i_model].append(output)
 
                 if i_batch % 500 == 0:
-                    print("Model number: " + str(j_model) +
+                    print("Model number: " + str(i_model) +
                           ", Batch: " + str(i_batch) +
                           "/" + str(len(eval_dataset) // batch_size + (1 if len(eval_dataset) % batch_size > 0 else 0)) +
                           ", Time elapsed: " + str(time.time() - start))
+
+            # Free up GPU memory
+            if torch.cuda.is_available():
+                models[i_model] = models[i_model].to('cpu')
 
     # Concatenate the predictions for each batch, for each model
     probs = [torch.cat(one_model_probs) for one_model_probs in probs]
@@ -206,7 +204,6 @@ def main():
                            train_verb_prepared.to_folds(n_folds)]
     train_allpos_datasets = [torch.utils.data.TensorDataset(*tensors) for tensors in
                              train_allpos_prepared.to_folds(n_folds)]
-
     test_vua_verb_dataset = torch.utils.data.TensorDataset(*test_vua_verb_prepared.get_tensors())
     test_vua_allpos_dataset = torch.utils.data.TensorDataset(*test_vua_allpos_prepared.get_tensors())
     test_toefl_verb_dataset = torch.utils.data.TensorDataset(*test_toefl_verb_prepared.get_tensors())
@@ -242,14 +239,30 @@ def main():
     best_verb_f1_index = 0
     best_allpos_f1 = 0
     best_allpos_f1_index = 0
+    total_verb_f1 = 0
+    total_allpos_f1 = 0
 
-    # TODO: Load the weights and run from here
+    # # TODO: Load the weights and run from here
+    # for i in range(n_folds):
+    #     print("Loading " + str(i))
+    #     model = deepmet_model.DeepMet(num_tokens=max_length, dropout_rate=0.2)
+    #     model.load_state_dict(torch.load("../data/deepmet_model_2_" + str(i) + ".model", map_location='cpu'))
+    #     models.append(model)
 
     print("Entering cross validation!")
     for i in range(n_folds):
         print("Model number: " + str(i))
+
+        if torch.cuda.is_available():
+            models[i] = models[i].to(torch.device(0))
+
         f1_verb = evaluate(train_verb_datasets[i], models[i])
         f1_allpos = evaluate(train_allpos_datasets[i], models[i])
+
+        # Free up GPU memory
+        if torch.cuda.is_available():
+            models[i] = models[i].to('cpu')
+
         print()
 
         if f1_verb > best_verb_f1:
@@ -260,6 +273,8 @@ def main():
             best_allpos_f1 = f1_allpos
             best_allpos_f1_index = i
 
+    print("av_verb_f1 = " + str(total_verb_f1 / n_folds))
+    print("av_allpos_f1 = " + str(total_allpos_f1 / n_folds))
     print("best_verb_f1 = " + str(best_verb_f1) + ", ind = " + str(best_verb_f1_index))
     print("best_allpos_f1 = " + str(best_allpos_f1) + ", ind = " + str(best_allpos_f1_index))
 
