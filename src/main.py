@@ -5,7 +5,8 @@ from prepared_input import Prepared
 import deepmet_model
 import time
 
-batch_size = 8
+batch_size = 16
+max_seq_len = 128
 epochs = 3
 learning_rate = 0.00001
 metaphor_preference_parameter = 0.2
@@ -30,7 +31,7 @@ def train(train_dataset, model, optimizer, epoch, is_verb_task, start_time):
         loss.backward()
         optimizer.step()
 
-        if i_batch % 1000 == 0:
+        if i_batch % 500 == 0:
             print("Epoch: " + str(epoch) +
                   (" Verb" if is_verb_task else " All Pos") +
                   ", Batch: " + str(i_batch) +
@@ -53,7 +54,7 @@ def evaluate(eval_dataset, model):
             output = model(*sample_batched[1:7])
             probs.append(output)
 
-            if i_batch % 500 == 0:
+            if i_batch % 250 == 0:
                 print("Batch: " + str(i_batch) +
                       "/" + str(len(eval_dataset) // batch_size + (1 if len(eval_dataset) % batch_size > 0 else 0)) +
                       ", Time elapsed: " + str(time.time() - start))
@@ -105,12 +106,12 @@ def main():
     df_train_verb = pd.concat([df_train_vua_verb, df_train_toefl_verb])
     df_train_allpos = pd.concat([df_train_vua_allpos, df_train_toefl_allpos])
 
-    train_verb_prepared = Prepared('train_verb', df_train_verb)
-    train_allpos_prepared = Prepared('train_allpos', df_train_allpos)
-    test_vua_verb_prepared = Prepared('test_vua_verb', df_test_vua_verb)
-    test_vua_allpos_prepared = Prepared('test_vua_allpos', df_test_vua_allpos)
-    test_toefl_verb_prepared = Prepared('test_toefl_verb', df_test_toefl_verb)
-    test_toefl_allpos_prepared = Prepared('test_toefl_allpos', df_test_toefl_allpos)
+    train_verb_prepared = Prepared('train_verb', df_train_verb, max_seq_len)
+    train_allpos_prepared = Prepared('train_allpos', df_train_allpos, max_seq_len)
+    test_vua_verb_prepared = Prepared('test_vua_verb', df_test_vua_verb, max_seq_len)
+    test_vua_allpos_prepared = Prepared('test_vua_allpos', df_test_vua_allpos, max_seq_len)
+    test_toefl_verb_prepared = Prepared('test_toefl_verb', df_test_toefl_verb, max_seq_len)
+    test_toefl_allpos_prepared = Prepared('test_toefl_allpos', df_test_toefl_allpos, max_seq_len)
 
     all_prepared = (train_verb_prepared, train_allpos_prepared, test_vua_verb_prepared, test_vua_allpos_prepared,
                     test_toefl_verb_prepared, test_toefl_allpos_prepared)
@@ -141,14 +142,14 @@ def main():
     print("Entering train")
     start = time.time()
     for epoch in range(epochs):
-        model = train(train_verb_dataset, model, optimizer, epoch, True, start)
+        # model = train(train_verb_dataset, model, optimizer, epoch, True, start)
         model = train(train_allpos_dataset, model, optimizer, epoch, False, start)
     print("Done training!")
 
-    torch.save(model.state_dict(), "../data/deepmet_model_1_2.model")
+    torch.save(model.state_dict(), "../data/deepmet_model_1_4.model")
     print("Model saved!")
 
-    # model.load_state_dict(torch.load("../data/deepmet_model_1.model"))
+    # model.load_state_dict(torch.load("../data/deepmet_model_1_4.model"))
 
     print()
     print("VUA Verb evaluate")
