@@ -12,31 +12,31 @@ learning_rate = 0.00001
 metaphor_preference_parameter = 0.2
 
 
-# Loss function as defined by equations (7)-(9) in the paper
-# is_verb_task: True = VERB track, False = ALLPOS track
-def loss_function(estimate_metaphors, estimate_literals, targets, is_verb_task):
-    l0 = l1 = - torch.sum(targets * torch.log(estimate_metaphors) + (1 - targets) * torch.log(estimate_literals))
-    return l0 * int(is_verb_task) + l1 * (1 - int(is_verb_task))
+# Loss function as defined by equation (7) in the paper. (8) and (9) redundant because we train in multi-task mode
+def loss_function(estimate_metaphors, estimate_literals, targets):
+    return - torch.sum(targets * torch.log(estimate_metaphors) + (1 - targets) * torch.log(estimate_literals))
 
 
-def train(train_dataset, model, optimizer, epoch, is_verb_task, start_time):
+def train(train_dataset, model, optimizer, epoch, start_time):
     model.train()
 
     dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-
+    running_loss = 0.0
     for i_batch, sample_batched in enumerate(dataloader):
         optimizer.zero_grad()
         output = model(*sample_batched[1:7])
-        loss = loss_function(output[:, 1], output[:, 0], sample_batched[0], is_verb_task)
+        loss = loss_function(output[:, 1], output[:, 0], sample_batched[0])
+        running_loss += loss.item()
         loss.backward()
         optimizer.step()
 
         if i_batch % 500 == 0:
-            print("Epoch: " + str(epoch) +
-                  (" Verb" if is_verb_task else " All Pos") +
-                  ", Batch: " + str(i_batch) +
-                  "/" + str(len(train_dataset) // batch_size + (1 if len(train_dataset) % batch_size > 0 else 0)) +
-                  ", Time elapsed: " + str(time.time() - start_time))
+            print(f"Epoch: {epoch}, "
+                  f"Batch: {i_batch}/"
+                  f"{len(train_dataset) // batch_size + (1 if len(train_dataset) % batch_size > 0 else 0)}, "
+                  f"Time elapsed: {(time.time()-start_time):.1f}s, "
+                  f"Loss: {running_loss:.3f}")
+            running_loss = 0
 
     return model
 
@@ -45,7 +45,7 @@ def evaluate(eval_dataset, model):
     model.eval()
     dataloader = torch.utils.data.DataLoader(eval_dataset, batch_size=batch_size)
 
-    start = time.time()
+    start_time = time.time()
 
     probs = []
     with torch.no_grad():
@@ -55,9 +55,9 @@ def evaluate(eval_dataset, model):
             probs.append(output)
 
             if i_batch % 250 == 0:
-                print("Batch: " + str(i_batch) +
-                      "/" + str(len(eval_dataset) // batch_size + (1 if len(eval_dataset) % batch_size > 0 else 0)) +
-                      ", Time elapsed: " + str(time.time() - start))
+                print(f"Batch: {i_batch}/"
+                      f"{len(eval_dataset) // batch_size + (1 if len(eval_dataset) % batch_size > 0 else 0)}, "
+                      f"Time elapsed: {(time.time() - start_time):.1f}s")
 
     preds = [int(prob > metaphor_preference_parameter) for prob in torch.cat(probs, dim=0)[:, 1]]
     actuals = eval_dataset[:][0].tolist()
@@ -77,17 +77,17 @@ def evaluate(eval_dataset, model):
         else:
             tn += 1
 
-    print("TP = " + str(tp) + ", FP = " + str(fp) + ", FN = " + str(fn) + ", TN = " + str(tn))
+    print(f"TP = {tp}, FP = {fp}, FN = {fn}, TN = {tn}")
 
     acc = (tp + tn) / (tp + fp + fn + tn)
     prec = tp / (tp + fp) if tp + fp > 0 else 0
     rec = tp / (tp + fn) if tp + fn > 0 else 0
     f1 = (prec + rec) / 2
 
-    print("Accuracy: " + str(acc))
-    print("Precision: " + str(prec))
-    print("Recall: " + str(rec))
-    print("f1: " + str(f1))
+    print(f"Accuracy: {acc}")
+    print(f"Precision: {prec}")
+    print(f"Recall: {rec}")
+    print(f"f1: {f1}")
 
 
 def main():
@@ -143,7 +143,7 @@ def main():
     start = time.time()
     for epoch in range(epochs):
         # model = train(train_verb_dataset, model, optimizer, epoch, True, start)
-        model = train(train_allpos_dataset, model, optimizer, epoch, False, start)
+        model = train(train_allpos_dataset, model, optimizer, epoch, start)
     print("Done training!")
 
     torch.save(model.state_dict(), "../data/deepmet_model_1_4.model")
