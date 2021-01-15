@@ -84,10 +84,10 @@ def evaluate(eval_dataset, model):
     rec = tp / (tp + fn) if tp + fn > 0 else 0
     f1 = (prec + rec) / 2
 
-    print(f"Accuracy: {acc}")
-    print(f"Precision: {prec}")
-    print(f"Recall: {rec}")
-    print(f"f1: {f1}")
+    print(f"Accuracy: {acc:.3f}")
+    print(f"Precision: {prec:.3f}")
+    print(f"Recall: {rec:.3f}")
+    print(f"f1: {f1:.3f}")
 
 
 def main():
