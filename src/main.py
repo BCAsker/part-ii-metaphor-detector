@@ -103,17 +103,20 @@ def main():
     df_train_toefl_allpos = pd.read_csv("../data/TOEFL/train_toefl_allpos_tokenized.csv", index_col='token_id').dropna()
     df_test_toefl_verb = pd.read_csv("../data/TOEFL/test_toefl_verb_tokenized.csv", index_col='token_id').dropna()
     df_test_toefl_allpos = pd.read_csv("../data/TOEFL/test_toefl_allpos_tokenized.csv", index_col='token_id').dropna()
-    df_train_verb = pd.concat([df_train_vua_verb, df_train_toefl_verb])
-    df_train_allpos = pd.concat([df_train_vua_allpos, df_train_toefl_allpos])
 
-    train_verb_prepared = Prepared('train_verb', df_train_verb, max_seq_len)
-    train_allpos_prepared = Prepared('train_allpos', df_train_allpos, max_seq_len)
+    # df_train_vua = pd.concat([df_train_vua_verb, df_train_vua_allpos])
+    # df_train_toefl = pd.concat([df_train_toefl_verb, df_train_toefl_allpos])
+    df_train_vua = df_train_vua_allpos
+    df_train_toefl = df_train_toefl_allpos
+
+    train_vua_prepared = Prepared('train_vua', df_train_vua, max_seq_len)
+    train_toefl_prepared = Prepared('train_toefl', df_train_toefl, max_seq_len)
     test_vua_verb_prepared = Prepared('test_vua_verb', df_test_vua_verb, max_seq_len)
     test_vua_allpos_prepared = Prepared('test_vua_allpos', df_test_vua_allpos, max_seq_len)
     test_toefl_verb_prepared = Prepared('test_toefl_verb', df_test_toefl_verb, max_seq_len)
     test_toefl_allpos_prepared = Prepared('test_toefl_allpos', df_test_toefl_allpos, max_seq_len)
 
-    all_prepared = (train_verb_prepared, train_allpos_prepared, test_vua_verb_prepared, test_vua_allpos_prepared,
+    all_prepared = (train_vua_prepared, train_toefl_prepared, test_vua_verb_prepared, test_vua_allpos_prepared,
                     test_toefl_verb_prepared, test_toefl_allpos_prepared)
 
     # Make sure all inputs are of the same length
@@ -131,32 +134,22 @@ def main():
 
     # 0 = metaphor, 1 = input_ids_a, 2 = att_mask_a, 3 = tok_type_ids_a, 4 = input_ids_b, 5 = att_mask_b,
     # 6 = tok_type_ids_b
-    train_verb_dataset = torch.utils.data.TensorDataset(*train_verb_prepared.get_tensors())
-    train_allpos_dataset = torch.utils.data.TensorDataset(*train_allpos_prepared.get_tensors())
+    train_vua_dataset = torch.utils.data.TensorDataset(*train_vua_prepared.get_tensors())
+    train_toefl_dataset = torch.utils.data.TensorDataset(*train_toefl_prepared.get_tensors())
     test_vua_verb_dataset = torch.utils.data.TensorDataset(*test_vua_verb_prepared.get_tensors())
     test_vua_allpos_dataset = torch.utils.data.TensorDataset(*test_vua_allpos_prepared.get_tensors())
     test_toefl_verb_dataset = torch.utils.data.TensorDataset(*test_toefl_verb_prepared.get_tensors())
     test_toefl_allpos_dataset = torch.utils.data.TensorDataset(*test_toefl_allpos_prepared.get_tensors())
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-    print("Entering train")
+    print("Entering TOEFL train")
     start = time.time()
     for epoch in range(epochs):
-        # model = train(train_verb_dataset, model, optimizer, epoch, True, start)
-        model = train(train_allpos_dataset, model, optimizer, epoch, start)
-    print("Done training!")
+        model = train(train_toefl_dataset, model, optimizer, epoch, start)
+    print("Done training TOEFL!")
+    torch.save(model.state_dict(), "../models/deepmet_model_TOEFL_1_5.model")
+    print("TOEFL Model saved!")
 
-    torch.save(model.state_dict(), "../data/deepmet_model_1_4.model")
-    print("Model saved!")
-
-    # model.load_state_dict(torch.load("../data/deepmet_model_1_4.model"))
-
-    print()
-    print("VUA Verb evaluate")
-    evaluate(test_vua_verb_dataset, model)
-    print()
-    print("VUA All POS evaluate")
-    evaluate(test_vua_allpos_dataset, model)
     print()
     print("TOEFL Verb evaluate")
     evaluate(test_toefl_verb_dataset, model)
@@ -164,6 +157,32 @@ def main():
     print("TOEFL All POS evaluate")
     evaluate(test_toefl_allpos_dataset, model)
     print()
+
+    # Create a fresh model for the VUA tasks
+    if torch.cuda.is_available():
+        # Remove the TOEFL model from the GPU, so that we have enough room for the VUA one
+        model = model.cpu()
+
+    model = deepmet_model.DeepMet(num_tokens=max_length, dropout_rate=0.2)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+    if torch.cuda.is_available():
+        model.to(torch.device(0))
+
+    print("Entering VUA train")
+    start = time.time()
+    for epoch in range(epochs):
+        model = train(train_vua_dataset, model, optimizer, epoch, start)
+    print("Done training VUA!")
+    torch.save(model.state_dict(), "../models/deepmet_model_VUA_1_5.model")
+    print("VUA Model saved!")
+
+    print()
+    print("VUA Verb evaluate")
+    evaluate(test_vua_verb_dataset, model)
+    print()
+    print("VUA All POS evaluate")
+    evaluate(test_vua_allpos_dataset, model)
 
 
 if __name__ == '__main__':
