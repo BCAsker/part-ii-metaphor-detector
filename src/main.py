@@ -106,12 +106,18 @@ def main(batch_size=16, max_seq_len=128, epochs=3, n_folds=10, learning_rate=0.0
     pd.set_option("display.width", 0)
 
     # Load the dataframes containing the raw inputs for our embedding layer
-    df_train_vua = pd.read_csv("../data/VUA/train_vua_allpos_tokenized.csv", index_col='token_id').dropna()
-    df_test_vua_verb = pd.read_csv("../data/VUA/test_vua_verb_tokenized.csv", index_col='token_id').dropna()
-    df_test_vua_allpos = pd.read_csv("../data/VUA/test_vua_allpos_tokenized.csv", index_col='token_id').dropna()
-    df_train_toefl = pd.read_csv("../data/TOEFL/train_toefl_allpos_tokenized.csv", index_col='token_id').dropna()
-    df_test_toefl_verb = pd.read_csv("../data/TOEFL/test_toefl_verb_tokenized.csv", index_col='token_id').dropna()
-    df_test_toefl_allpos = pd.read_csv("../data/TOEFL/test_toefl_allpos_tokenized.csv", index_col='token_id').dropna()
+    df_train_vua = pd.read_csv("../data/VUA/tokenized/train_vua_tokenized.csv",
+                               index_col='token_id').dropna()
+    df_test_vua_verb = pd.read_csv("../data/VUA/tokenized/test_vua_verb_tokenized.csv",
+                                   index_col='token_id').dropna()
+    df_test_vua_allpos = pd.read_csv("../data/VUA/tokenized/test_vua_allpos_tokenized.csv",
+                                     index_col='token_id').dropna()
+    df_train_toefl = pd.read_csv("../data/TOEFL/tokenized/train_toefl_tokenized.csv",
+                                 index_col='token_id').dropna()
+    df_test_toefl_verb = pd.read_csv("../data/TOEFL/tokenized/test_toefl_verb_tokenized.csv",
+                                     index_col='token_id').dropna()
+    df_test_toefl_allpos = pd.read_csv("../data/TOEFL/tokenized/test_toefl_allpos_tokenized.csv",
+                                       index_col='token_id').dropna()
 
     train_vua_prepared = Prepared('train_vua', df_train_vua, max_seq_len)
     train_toefl_prepared = Prepared('train_toefl', df_train_toefl, max_seq_len)
