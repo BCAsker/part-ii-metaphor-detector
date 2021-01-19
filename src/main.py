@@ -5,13 +5,7 @@ import torch.utils.data
 from prepared_input import Prepared
 import deepmet_model
 import time
-
-batch_size = 16
-max_seq_len = 128
-epochs = 3
-n_folds = 10
-learning_rate = 0.00001
-metaphor_preference_parameter = 0.2
+import argparse
 
 
 # Loss function as defined by equation (7) in the paper. (8) and (9) redundant because we train in multi-task mode
@@ -19,7 +13,7 @@ def loss_function(estimate_metaphors, estimate_literals, targets):
     return - torch.sum(targets * torch.log(estimate_metaphors) + (1 - targets) * torch.log(estimate_literals))
 
 
-def train(train_dataset, model, optimizer, epoch, model_num, start_time):
+def train(train_dataset, model, optimizer, batch_size, epoch, model_num, start_time):
     model.train()
 
     dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
@@ -44,7 +38,7 @@ def train(train_dataset, model, optimizer, epoch, model_num, start_time):
     return model
 
 
-def evaluate(eval_dataset, models, start_time):
+def evaluate(eval_dataset, models, batch_size, metaphor_preference_parameter, start_time, model_num=None):
     if type(models) == deepmet_model.DeepMet:
         models = [models]
     [model.eval() for model in models]
@@ -61,7 +55,7 @@ def evaluate(eval_dataset, models, start_time):
                 output = (models[i_model])(*(sample_batched[1:7]))
                 probabilities.append(output)
                 if i_batch % 250 == 0:
-                    print(f"Model number: {i_model}, "
+                    print(f"Model number: {i_model if model_num is None else model_num}, "
                           f"Batch: {i_batch}/"
                           f"{len(eval_dataset) // batch_size + (1 if len(eval_dataset) % batch_size > 0 else 0)}, "
                           f"Time elapsed: {(time.time() - start_time):.1f}s")
@@ -107,7 +101,7 @@ def evaluate(eval_dataset, models, start_time):
     return f1
 
 
-def main():
+def main(batch_size=16, max_seq_len=128, epochs=3, n_folds=10, learning_rate=0.00001, metaphor_preference_param=0.2):
     pd.set_option("display.max_rows", 1000)
     pd.set_option("display.width", 0)
 
@@ -152,9 +146,20 @@ def main():
         eval_dataset = train_vua_datasets[i]
 
         for epoch in range(1, epochs + 1):
-            model = train(train_dataset, model, optimizer, epoch, i, start)
-
-        evaluate(eval_dataset, model, start)
+            model = train(train_dataset=train_dataset,
+                          model=model,
+                          optimizer=optimizer,
+                          batch_size=batch_size,
+                          epoch=epoch,
+                          model_num=i,
+                          start_time=start)
+        print("Validation")
+        evaluate(eval_dataset=eval_dataset,
+                 models=model,
+                 batch_size=batch_size,
+                 metaphor_preference_parameter=metaphor_preference_param,
+                 model_num=i,
+                 start_time=start)
         print()
 
         torch.save(model.state_dict(), f"../models/deepmet_model_VUA_2_{i}.model")
@@ -184,9 +189,20 @@ def main():
         eval_dataset = train_toefl_datasets[i]
 
         for epoch in range(1, epochs + 1):
-            model = train(train_dataset, model, optimizer, epoch, i, start)
-
-        evaluate(eval_dataset, model, start)
+            model = train(train_dataset=train_dataset,
+                          model=model,
+                          optimizer=optimizer,
+                          batch_size=batch_size,
+                          epoch=epoch,
+                          model_num=i,
+                          start_time=start)
+        print("Cross validation")
+        evaluate(eval_dataset=eval_dataset,
+                 models=model,
+                 batch_size=batch_size,
+                 metaphor_preference_parameter=metaphor_preference_param,
+                 model_num=i,
+                 start_time=start)
         print()
 
         torch.save(model.state_dict(), f"../models/deepmet_model_TOEFL_2_{i}.model")
@@ -209,19 +225,54 @@ def main():
     test_toefl_verb_dataset = torch.utils.data.TensorDataset(*test_toefl_verb_prepared.get_tensors())
     test_toefl_allpos_dataset = torch.utils.data.TensorDataset(*test_toefl_allpos_prepared.get_tensors())
 
-    print("VUA Verb multi_evaluate")
-    evaluate(test_vua_verb_dataset, vua_models, start)
+    print("VUA Verb evaluation on test set")
+    evaluate(eval_dataset=test_vua_verb_dataset,
+             models=vua_models,
+             batch_size=batch_size,
+             metaphor_preference_parameter=metaphor_preference_param,
+             start_time=start,
+             model_num=None)
     print()
-    print("VUA All POS multi_evaluate")
-    evaluate(test_vua_allpos_dataset, vua_models, start)
+    print("VUA All POS evaluation on test set")
+    evaluate(eval_dataset=test_vua_allpos_dataset,
+             models=vua_models,
+             batch_size=batch_size,
+             metaphor_preference_parameter=metaphor_preference_param,
+             start_time=start,
+             model_num=None)
     print()
-    print("TOEFL Verb multi_evaluate")
-    evaluate(test_toefl_verb_dataset, toefl_models, start)
+    print("TOEFL Verb evaluation on test set")
+    evaluate(eval_dataset=test_toefl_verb_dataset,
+             models=toefl_models,
+             batch_size=batch_size,
+             metaphor_preference_parameter=metaphor_preference_param,
+             start_time=start,
+             model_num=None)
     print()
-    print("TOEFL All POS multi_evaluate")
-    evaluate(test_toefl_allpos_dataset, toefl_models, start)
+    print("TOEFL All POS evaluation on test set")
+    evaluate(eval_dataset=test_toefl_allpos_dataset,
+             models=toefl_models,
+             batch_size=batch_size,
+             metaphor_preference_parameter=metaphor_preference_param,
+             start_time=start,
+             model_num=None)
     print()
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description="DeepMet")
+    parser.add_argument("--batch_size", default=16, required=False)
+    parser.add_argument("--max_seq_len", default=128, required=False)
+    parser.add_argument("--epochs", default=3, required=False)
+    parser.add_argument("--folds", default=10, required=False)
+    parser.add_argument("--learning_rate", default=0.00001, required=False)
+    parser.add_argument("--metaphor_preference_param", default=0.2, required=False)
+
+    args = parser.parse_args()
+
+    main(batch_size=args.batch_size,
+         max_seq_len=args.max_seq_len,
+         epochs=args.epochs,
+         n_folds=args.folds,
+         learning_rate=args.learning_rate,
+         metaphor_preference_param=args.metaphor_preference_param)
