@@ -21,7 +21,6 @@ class Prepared:
 
         # See if we have cached a set of inputs for our model and use that, otherwise do the necessary work
         if self.check_prepared(name) and (
-                max_length == 0 or
                 len(torch.load('../data/intermediate/' + name + '_global_input_ids.pt')[0]) == max_length):
             self.load_prepared()
         else:
@@ -53,7 +52,7 @@ class Prepared:
                          '_local_input_ids.pt', '_local_attention_mask.pt', '_local_token_type_ids.pt']
         return all([os.path.exists('../data/intermediate/' + str(name) + end) for end in filename_ends])
 
-    def prepare_inputs(self, max_length):
+    def prepare_inputs(self, max_length=0):
         global_context_input = self.df['sentence'] + " </s> " + self.df['query'] + " </s> " + self.df['pos'] + " </s> "\
             + self.df['fgpos']
         local_context_input = self.df['local'] + " </s> " + self.df['query'] + " </s> " + self.df['pos'] + " </s> " \
@@ -69,11 +68,17 @@ class Prepared:
                                                 max_length=global_context_tokenized['input_ids'].size()[1])
         else:
             global_context_tokenized = tokenizer(list(global_context_input),
-                                                 add_special_tokens=True, padding='max_length', return_tensors='pt',
-                                                 max_length=max_length)
+                                                 add_special_tokens=True,
+                                                 padding='max_length',
+                                                 return_tensors='pt',
+                                                 max_length=max_length,
+                                                 truncation=True)
             local_context_tokenized = tokenizer(list(local_context_input),
-                                                add_special_tokens=True, padding='max_length', return_tensors='pt',
-                                                max_length=max_length)
+                                                add_special_tokens=True,
+                                                padding='max_length',
+                                                return_tensors='pt',
+                                                max_length=max_length,
+                                                truncation=True)
 
         self.global_input_ids = global_context_tokenized['input_ids']
         self.global_attention_mask = global_context_tokenized['attention_mask']

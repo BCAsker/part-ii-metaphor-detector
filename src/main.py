@@ -1,58 +1,53 @@
 import pandas as pd
 import torch
 import torch.optim as optim
+import torch.utils.data
 from prepared_input import Prepared
 import deepmet_model
 import time
 import numpy as np
 
-batch_size = 4
+batch_size = 16
+max_seq_len = 128
 epochs = 3
 n_folds = 10
 learning_rate = 0.00001
 metaphor_preference_parameter = 0.2
 
 
-# Loss function as defined by equations (7)-(9) in the paper
-# is_verb_task: True = VERB track, False = ALLPOS track
-def loss_function(estimate_metaphors, estimate_literals, targets, is_verb_task):
-    l0 = l1 = - torch.sum(targets * torch.log(estimate_metaphors) + (1 - targets) * torch.log(estimate_literals))
-    return l0 * int(is_verb_task) + l1 * (1 - int(is_verb_task))
+# Loss function as defined by equation (7) in the paper. (8) and (9) redundant because we train in multi-task mode
+def loss_function(estimate_metaphors, estimate_literals, targets):
+    return - torch.sum(targets * torch.log(estimate_metaphors) + (1 - targets) * torch.log(estimate_literals))
 
 
-def train(train_dataset, model, model_num, fold_num, optimizer, epoch, start_time, is_verb_task):
+def train(train_dataset, model, optimizer, epoch, model_num, start_time):
     model.train()
 
-    dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size)
-
+    dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    running_loss = 0.0
     for i_batch, sample_batched in enumerate(dataloader):
         optimizer.zero_grad()
         output = model(*sample_batched[1:7])
-        loss = loss_function(output[:, 1], output[:, 0], sample_batched[0], is_verb_task)
+        loss = loss_function(output[:, 1], output[:, 0], sample_batched[0])
+        running_loss += loss.item()
         loss.backward()
         optimizer.step()
 
-        if i_batch % 100 == 0:
-            print("Model Number: " + str(model_num) +
-                  ", Epoch: " + str(epoch) +
-                  (" Verb" if is_verb_task else " All Pos") +
-                  ", Training fold number: " + str(fold_num) +
-                  ", Batch: " + str(i_batch) +
-                  "/" + str(len(train_dataset) // batch_size + (1 if len(train_dataset) % batch_size > 0 else 0)) +
-                  ", Time elapsed: " + str(time.time() - start_time))
-
-        # TODO: Reduced training size for speed. Delete this later
-        if i_batch == 10:
-            break
+        if i_batch % 500 == 0:
+            print(f"Model number: {model_num}, "
+                  f"Epoch: {epoch}, "
+                  f"Batch: {i_batch}/"
+                  f"{len(train_dataset) // batch_size + (1 if len(train_dataset) % batch_size > 0 else 0)}, "
+                  f"Time elapsed: {(time.time() - start_time):.1f}s, "
+                  f"Loss: {running_loss:.3f}")
+            running_loss = 0.0
 
     return model
 
 
-def evaluate(eval_dataset, model):
+def evaluate(eval_dataset, model, start_time):
     model.eval()
     dataloader = torch.utils.data.DataLoader(eval_dataset, batch_size=batch_size)
-
-    start = time.time()
 
     probs = []
     with torch.no_grad():
@@ -61,10 +56,7 @@ def evaluate(eval_dataset, model):
             output = model(*sample_batched[1:7])
             probs.append(output)
 
-            if i_batch % 500 == 0:
-                print("Batch: " + str(i_batch) +
-                      "/" + str(len(eval_dataset) // batch_size + (1 if len(eval_dataset) % batch_size > 0 else 0)) +
-                      ", Time elapsed: " + str(time.time() - start))
+    print(f"Time elapsed: {(time.time() - start_time):.1f}s")
 
     preds = [int(prob > metaphor_preference_parameter) for prob in torch.cat(probs, dim=0)[:, 1]]
     actuals = eval_dataset[:][0].tolist()
@@ -84,26 +76,24 @@ def evaluate(eval_dataset, model):
         else:
             tn += 1
 
-    print("TP = " + str(tp) + ", FP = " + str(fp) + ", FN = " + str(fn) + ", TN = " + str(tn))
+    print(f"TP = {tp}, FP = {fp}, FN = {fn}, TN = {tn}")
 
     acc = (tp + tn) / (tp + fp + fn + tn)
     prec = tp / (tp + fp) if tp + fp > 0 else 0
     rec = tp / (tp + fn) if tp + fn > 0 else 0
     f1 = (prec + rec) / 2
 
-    print("Accuracy: " + str(acc))
-    print("Precision: " + str(prec))
-    print("Recall: " + str(rec))
-    print("f1: " + str(f1))
+    print(f"Accuracy: {acc:.3f}")
+    print(f"Precision: {prec:.3f}")
+    print(f"Recall: {rec:.3f}")
+    print(f"f1: {f1:.3f}")
 
     return f1
 
 
-def multi_evaluate(eval_dataset, models):
+def multi_evaluate(eval_dataset, models, start_time):
     [model.eval() for model in models]
     dataloader = torch.utils.data.DataLoader(eval_dataset, batch_size=batch_size)
-
-    start = time.time()
 
     probs = [[] for _ in range(len(models))]
     with torch.no_grad():
@@ -115,15 +105,15 @@ def multi_evaluate(eval_dataset, models):
                 output = (models[i_model])(*(sample_batched[1:7]))
                 probs[i_model].append(output)
 
-                if i_batch % 500 == 0:
-                    print("Model number: " + str(i_model) +
-                          ", Batch: " + str(i_batch) +
-                          "/" + str(len(eval_dataset) // batch_size + (1 if len(eval_dataset) % batch_size > 0 else 0)) +
-                          ", Time elapsed: " + str(time.time() - start))
+                if i_batch % 250 == 0:
+                    print(f"Model number: {i_model}, "
+                          f"Batch: {i_batch}/"
+                          f"{len(eval_dataset) // batch_size + (1 if len(eval_dataset) % batch_size > 0 else 0)}, "
+                          f"Time elapsed: {(time.time() - start_time):.1f}s")
 
             # Free up GPU memory
             if torch.cuda.is_available():
-                models[i_model] = models[i_model].to('cpu')
+                models[i_model] = models[i_model].cpu()
 
     # Concatenate the predictions for each batch, for each model
     probs = [torch.cat(one_model_probs) for one_model_probs in probs]
@@ -156,10 +146,10 @@ def multi_evaluate(eval_dataset, models):
     rec = tp / (tp + fn) if tp + fn > 0 else 0
     f1 = (prec + rec) / 2
 
-    print("Accuracy: " + str(acc))
-    print("Precision: " + str(prec))
-    print("Recall: " + str(rec))
-    print("f1: " + str(f1))
+    print(f"Accuracy: {acc:.3f}")
+    print(f"Precision: {prec:.3f}")
+    print(f"Recall: {rec:.3f}")
+    print(f"f1: {f1:.3f}")
 
     return f1
 
@@ -169,25 +159,21 @@ def main():
     pd.set_option("display.width", 0)
 
     # Load the dataframes containing the raw inputs for our embedding layer
-    df_train_vua_verb = pd.read_csv("../data/VUA/train_vua_verb_tokenized.csv", index_col='token_id').dropna()
-    df_train_vua_allpos = pd.read_csv("../data/VUA/train_vua_allpos_tokenized.csv", index_col='token_id').dropna()
+    df_train_vua = pd.read_csv("../data/VUA/train_vua_allpos_tokenized.csv", index_col='token_id').dropna()
     df_test_vua_verb = pd.read_csv("../data/VUA/test_vua_verb_tokenized.csv", index_col='token_id').dropna()
     df_test_vua_allpos = pd.read_csv("../data/VUA/test_vua_allpos_tokenized.csv", index_col='token_id').dropna()
-    df_train_toefl_verb = pd.read_csv("../data/TOEFL/train_toefl_verb_tokenized.csv", index_col='token_id').dropna()
-    df_train_toefl_allpos = pd.read_csv("../data/TOEFL/train_toefl_allpos_tokenized.csv", index_col='token_id').dropna()
+    df_train_toefl = pd.read_csv("../data/TOEFL/train_toefl_allpos_tokenized.csv", index_col='token_id').dropna()
     df_test_toefl_verb = pd.read_csv("../data/TOEFL/test_toefl_verb_tokenized.csv", index_col='token_id').dropna()
     df_test_toefl_allpos = pd.read_csv("../data/TOEFL/test_toefl_allpos_tokenized.csv", index_col='token_id').dropna()
-    df_train_verb = pd.concat([df_train_vua_verb, df_train_toefl_verb])
-    df_train_allpos = pd.concat([df_train_vua_allpos, df_train_toefl_allpos])
 
-    train_verb_prepared = Prepared('train_verb', df_train_verb)
-    train_allpos_prepared = Prepared('train_allpos', df_train_allpos)
-    test_vua_verb_prepared = Prepared('test_vua_verb', df_test_vua_verb)
-    test_vua_allpos_prepared = Prepared('test_vua_allpos', df_test_vua_allpos)
-    test_toefl_verb_prepared = Prepared('test_toefl_verb', df_test_toefl_verb)
-    test_toefl_allpos_prepared = Prepared('test_toefl_allpos', df_test_toefl_allpos)
+    train_vua_prepared = Prepared('train_vua', df_train_vua, max_seq_len)
+    train_toefl_prepared = Prepared('train_toefl', df_train_toefl, max_seq_len)
+    test_vua_verb_prepared = Prepared('test_vua_verb', df_test_vua_verb, max_seq_len)
+    test_vua_allpos_prepared = Prepared('test_vua_allpos', df_test_vua_allpos, max_seq_len)
+    test_toefl_verb_prepared = Prepared('test_toefl_verb', df_test_toefl_verb, max_seq_len)
+    test_toefl_allpos_prepared = Prepared('test_toefl_allpos', df_test_toefl_allpos, max_seq_len)
 
-    all_prepared = (train_verb_prepared, train_allpos_prepared, test_vua_verb_prepared, test_vua_allpos_prepared,
+    all_prepared = (train_vua_prepared, train_toefl_prepared, test_vua_verb_prepared, test_vua_allpos_prepared,
                     test_toefl_verb_prepared, test_toefl_allpos_prepared)
 
     # Make sure all inputs are of the same length
@@ -197,98 +183,90 @@ def main():
             prepared.prepare_inputs(max_length)
 
     if torch.cuda.is_available():
-        for prepared in all_prepared:
-            prepared.to_device(torch.device(0))
+        train_vua_prepared.to_device(torch.device(0))
+    train_vua_datasets = [torch.utils.data.TensorDataset(*tensors) for tensors in train_vua_prepared.to_folds(n_folds)]
 
-    train_verb_datasets = [torch.utils.data.TensorDataset(*tensors) for tensors in
-                           train_verb_prepared.to_folds(n_folds)]
-    train_allpos_datasets = [torch.utils.data.TensorDataset(*tensors) for tensors in
-                             train_allpos_prepared.to_folds(n_folds)]
+    print("Entering VUA train")
+    start = time.time()
+    vua_models = []
+    for i in range(n_folds):
+        model = deepmet_model.DeepMet(num_tokens=max_length, dropout_rate=0.2)
+        if torch.cuda.is_available():
+            model = model.to(torch.device(0))
+        optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+        train_dataset = torch.utils.data.ConcatDataset(train_vua_datasets[0:i] + train_vua_datasets[i+1:n_folds])
+        eval_dataset = train_vua_datasets[i]
+
+        for epoch in range(1, epochs + 1):
+            model = train(train_dataset, model, optimizer, epoch, i, start)
+
+        evaluate(eval_dataset, model, start)
+        print()
+
+        torch.save(model.state_dict(), f"../models/deepmet_model_VUA_2_{i}.model")
+        if torch.cuda.is_available():
+            model = model.cpu()
+        vua_models.append(model)
+
+    print("VUA train complete")
+
+    if torch.cuda.is_available():
+        train_vua_prepared.to_device('cpu')
+        del train_vua_datasets
+        train_toefl_prepared.to_device(torch.device(0))
+
+    train_toefl_datasets = [torch.utils.data.TensorDataset(*tensors) for tensors in
+                            train_toefl_prepared.to_folds(n_folds)]
+
+    print("Entering TOEFL train")
+    toefl_models = []
+    for i in range(n_folds):
+        model = deepmet_model.DeepMet(num_tokens=max_length, dropout_rate=0.2)
+        if torch.cuda.is_available():
+            model = model.to(torch.device(0))
+        optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+        train_dataset = torch.utils.data.ConcatDataset(train_toefl_datasets[0:i] + train_toefl_datasets[i+1:n_folds])
+        eval_dataset = train_toefl_datasets[i]
+
+        for epoch in range(1, epochs + 1):
+            model = train(train_dataset, model, optimizer, epoch, i, start)
+
+        evaluate(eval_dataset, model, start)
+        print()
+
+        torch.save(model.state_dict(), f"../models/deepmet_model_TOEFL_2_{i}.model")
+        if torch.cuda.is_available():
+            model = model.cpu()
+        toefl_models.append(model)
+
+    print("Done training!")
+
+    if torch.cuda.is_available():
+        train_toefl_prepared.to_device('cpu')
+        del train_toefl_datasets
+        test_vua_verb_prepared.to_device(torch.device(0))
+        test_vua_allpos_prepared.to_device(torch.device(0))
+        test_toefl_verb_prepared.to_device(torch.device(0))
+        test_toefl_allpos_prepared.to_device(torch.device(0))
+
     test_vua_verb_dataset = torch.utils.data.TensorDataset(*test_vua_verb_prepared.get_tensors())
     test_vua_allpos_dataset = torch.utils.data.TensorDataset(*test_vua_allpos_prepared.get_tensors())
     test_toefl_verb_dataset = torch.utils.data.TensorDataset(*test_toefl_verb_prepared.get_tensors())
     test_toefl_allpos_dataset = torch.utils.data.TensorDataset(*test_toefl_allpos_prepared.get_tensors())
 
-    print("Entering train")
-    models = []
-    start = time.time()
-    # Train n_folds number of models
-    for i in range(n_folds):
-        model = deepmet_model.DeepMet(num_tokens=max_length, dropout_rate=0.2)
-        if torch.cuda.is_available():
-            model = model.to(torch.device(0))
-
-        # Train this model on all but one of the folds
-        for j in range(n_folds):
-            optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-            if i != j:
-                for epoch in range(1, epochs + 1):
-                    model = train(train_verb_datasets[j], model, i, j, optimizer, epoch, start, True)
-                    model = train(train_allpos_datasets[j], model, i, j, optimizer, epoch, start, False)
-
-        models.append(model)
-        torch.save(model.state_dict(), "../data/deepmet_model_2_" + str(i) + ".model")
-
-        # Clear up GPU memory
-        if torch.cuda.is_available():
-            model.cpu()
-
-    print("Done training!")
-
-    best_verb_f1 = 0
-    best_verb_f1_index = 0
-    best_allpos_f1 = 0
-    best_allpos_f1_index = 0
-    total_verb_f1 = 0
-    total_allpos_f1 = 0
-
-    # # TODO: Load the weights and run from here
-    # for i in range(n_folds):
-    #     print("Loading " + str(i))
-    #     model = deepmet_model.DeepMet(num_tokens=max_length, dropout_rate=0.2)
-    #     model.load_state_dict(torch.load("../data/deepmet_model_2_" + str(i) + ".model", map_location='cpu'))
-    #     models.append(model)
-
-    print("Entering cross validation!")
-    for i in range(n_folds):
-        print("Model number: " + str(i))
-
-        if torch.cuda.is_available():
-            models[i] = models[i].to(torch.device(0))
-
-        f1_verb = evaluate(train_verb_datasets[i], models[i])
-        f1_allpos = evaluate(train_allpos_datasets[i], models[i])
-
-        # Free up GPU memory
-        if torch.cuda.is_available():
-            models[i] = models[i].to('cpu')
-
-        print()
-
-        if f1_verb > best_verb_f1:
-            best_verb_f1 = f1_verb
-            best_verb_f1_index = i
-
-        if f1_allpos > best_allpos_f1:
-            best_allpos_f1 = f1_allpos
-            best_allpos_f1_index = i
-
-    print("av_verb_f1 = " + str(total_verb_f1 / n_folds))
-    print("av_allpos_f1 = " + str(total_allpos_f1 / n_folds))
-    print("best_verb_f1 = " + str(best_verb_f1) + ", ind = " + str(best_verb_f1_index))
-    print("best_allpos_f1 = " + str(best_allpos_f1) + ", ind = " + str(best_allpos_f1_index))
-
     print("VUA Verb multi_evaluate")
-    multi_evaluate(test_vua_verb_dataset, models)
+    multi_evaluate(test_vua_verb_dataset, vua_models, start)
     print()
     print("VUA All POS multi_evaluate")
-    multi_evaluate(test_vua_allpos_dataset, models)
+    multi_evaluate(test_vua_allpos_dataset, vua_models, start)
     print()
     print("TOEFL Verb multi_evaluate")
-    multi_evaluate(test_toefl_verb_dataset, models)
+    multi_evaluate(test_toefl_verb_dataset, toefl_models, start)
     print()
     print("TOEFL All POS multi_evaluate")
-    multi_evaluate(test_toefl_allpos_dataset, models)
+    multi_evaluate(test_toefl_allpos_dataset, toefl_models, start)
     print()
 
 
