@@ -7,6 +7,9 @@ import deepmet_model
 import time
 import argparse
 
+vua_fold_file = "../data/vua_train_folds.csv"
+toefl_fold_file = "../data/toefl_train_folds.csv"
+
 
 # Loss function as defined by equation (7) in the paper. (8) and (9) redundant because we train in multi-task mode
 def loss_function(estimate_metaphors, estimate_literals, targets):
@@ -101,49 +104,54 @@ def evaluate(eval_dataset, models, batch_size, metaphor_preference_parameter, st
     return f1
 
 
-def main(batch_size=16, max_seq_len=128, epochs=3, n_folds=10, learning_rate=0.00001, metaphor_preference_param=0.2):
-    pd.set_option("display.max_rows", 1000)
-    pd.set_option("display.width", 0)
+def main(batch_size=16,
+         max_seq_len=128,
+         epochs=3, n_folds=10,
+         learning_rate=0.00001,
+         metaphor_preference_param=0.2,
+         models_to_train=None):
 
-    # Load the dataframes containing the raw inputs for our embedding layer
+    # Load the dataframes containing the raw inputs for our embedding layer. keep_default_na=False because nan might be
+    # a valid string, although it should probably be Nan when referring to someone's grandmother
     df_train_vua = pd.read_csv("../data/VUA/tokenized/train_vua_tokenized.csv",
-                               index_col='token_id').dropna()
+                               index_col='token_id', na_values=None, keep_default_na=False)
     df_test_vua_verb = pd.read_csv("../data/VUA/tokenized/test_vua_verb_tokenized.csv",
-                                   index_col='token_id').dropna()
+                                   index_col='token_id', keep_default_na=False)
     df_test_vua_allpos = pd.read_csv("../data/VUA/tokenized/test_vua_allpos_tokenized.csv",
-                                     index_col='token_id').dropna()
+                                     index_col='token_id', keep_default_na=False)
     df_train_toefl = pd.read_csv("../data/TOEFL/tokenized/train_toefl_tokenized.csv",
-                                 index_col='token_id').dropna()
+                                 index_col='token_id', keep_default_na=False)
     df_test_toefl_verb = pd.read_csv("../data/TOEFL/tokenized/test_toefl_verb_tokenized.csv",
-                                     index_col='token_id').dropna()
+                                     index_col='token_id', keep_default_na=False)
     df_test_toefl_allpos = pd.read_csv("../data/TOEFL/tokenized/test_toefl_allpos_tokenized.csv",
-                                       index_col='token_id').dropna()
+                                       index_col='token_id', keep_default_na=False)
 
-    train_vua_prepared = Prepared('train_vua', df_train_vua, max_seq_len)
-    train_toefl_prepared = Prepared('train_toefl', df_train_toefl, max_seq_len)
+    df_train_vua_folds = pd.read_csv("../data/vua_train_folds.csv", index_col='token_id')
+    df_train_toefl_folds = pd.read_csv("../data/toefl_train_folds.csv", index_col='token_id')
+
     test_vua_verb_prepared = Prepared('test_vua_verb', df_test_vua_verb, max_seq_len)
     test_vua_allpos_prepared = Prepared('test_vua_allpos', df_test_vua_allpos, max_seq_len)
     test_toefl_verb_prepared = Prepared('test_toefl_verb', df_test_toefl_verb, max_seq_len)
     test_toefl_allpos_prepared = Prepared('test_toefl_allpos', df_test_toefl_allpos, max_seq_len)
 
-    all_prepared = (train_vua_prepared, train_toefl_prepared, test_vua_verb_prepared, test_vua_allpos_prepared,
-                    test_toefl_verb_prepared, test_toefl_allpos_prepared)
-
-    # Make sure all inputs are of the same length
-    max_length = max([prepared.length for prepared in all_prepared])
-    for prepared in all_prepared:
-        if prepared.length != max_length:
-            prepared.prepare_inputs(max_length)
-
-    if torch.cuda.is_available():
-        train_vua_prepared.to_device(torch.device(0))
-    train_vua_datasets = [torch.utils.data.TensorDataset(*tensors) for tensors in train_vua_prepared.to_folds(n_folds)]
+    if models_to_train is None:
+        models_to_train = list(range(n_folds))
 
     print("Entering VUA train")
     start = time.time()
     vua_models = []
+    train_vua_prepared_folds = []
+    train_vua_datasets = []
     for i in range(n_folds):
-        model = deepmet_model.DeepMet(num_tokens=max_length, dropout_rate=0.2)
+        fold_index = list(df_train_vua_folds[df_train_vua_folds['fold'] == i].index)
+        prepared_fold = Prepared(f"train_vua_{i}", df_train_vua.loc[fold_index], max_seq_len)
+        if torch.cuda.is_available():
+            prepared_fold.to_device(torch.device(0))
+        train_vua_prepared_folds.append(prepared_fold)
+        train_vua_datasets.append(torch.utils.data.TensorDataset(*prepared_fold.get_tensors()))
+
+    for i in models_to_train:
+        model = deepmet_model.DeepMet(num_tokens=max_seq_len, dropout_rate=0.2)
         if torch.cuda.is_available():
             model = model.to(torch.device(0))
         optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -159,7 +167,7 @@ def main(batch_size=16, max_seq_len=128, epochs=3, n_folds=10, learning_rate=0.0
                           epoch=epoch,
                           model_num=i,
                           start_time=start)
-        print("Validation")
+        print("Cross validation")
         evaluate(eval_dataset=eval_dataset,
                  models=model,
                  batch_size=batch_size,
@@ -173,20 +181,29 @@ def main(batch_size=16, max_seq_len=128, epochs=3, n_folds=10, learning_rate=0.0
             model = model.cpu()
         vua_models.append(model)
 
-    print("VUA train complete")
-
+    # Cleanup GPU memory
     if torch.cuda.is_available():
-        train_vua_prepared.to_device('cpu')
+        for prepared in train_vua_prepared_folds:
+            prepared.to_device('cpu')
+        del train_vua_prepared_folds
         del train_vua_datasets
-        train_toefl_prepared.to_device(torch.device(0))
 
-    train_toefl_datasets = [torch.utils.data.TensorDataset(*tensors) for tensors in
-                            train_toefl_prepared.to_folds(n_folds)]
+    print("VUA train complete")
 
     print("Entering TOEFL train")
     toefl_models = []
+    train_toefl_prepared_folds = []
+    train_toefl_datasets = []
     for i in range(n_folds):
-        model = deepmet_model.DeepMet(num_tokens=max_length, dropout_rate=0.2)
+        fold_index = list(df_train_toefl_folds[df_train_toefl_folds['fold'] == i].index)
+        prepared_fold = Prepared(f"train_toefl_{i}", df_train_toefl.loc[fold_index], max_seq_len)
+        if torch.cuda.is_available():
+            prepared_fold.to_device(torch.device(0))
+        train_toefl_prepared_folds.append(prepared_fold)
+        train_toefl_datasets.append(torch.utils.data.TensorDataset(*prepared_fold.get_tensors()))
+
+    for i in models_to_train:
+        model = deepmet_model.DeepMet(num_tokens=max_seq_len, dropout_rate=0.2)
         if torch.cuda.is_available():
             model = model.to(torch.device(0))
         optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -216,11 +233,17 @@ def main(batch_size=16, max_seq_len=128, epochs=3, n_folds=10, learning_rate=0.0
             model = model.cpu()
         toefl_models.append(model)
 
-    print("Done training!")
-
+    # Cleanup GPU memory
     if torch.cuda.is_available():
-        train_toefl_prepared.to_device('cpu')
+        for prepared in train_toefl_prepared_folds:
+            prepared.to_device('cpu')
+        del train_toefl_prepared_folds
         del train_toefl_datasets
+
+    print("TOEFL train complete")
+
+    start = time.time()
+    if torch.cuda.is_available():
         test_vua_verb_prepared.to_device(torch.device(0))
         test_vua_allpos_prepared.to_device(torch.device(0))
         test_toefl_verb_prepared.to_device(torch.device(0))
@@ -273,6 +296,8 @@ if __name__ == '__main__':
     parser.add_argument("--folds", default=10, required=False)
     parser.add_argument("--learning_rate", default=0.00001, required=False)
     parser.add_argument("--metaphor_preference_param", default=0.2, required=False)
+    parser.add_argument("--models_to_train", default=None, nargs="+", type=int,
+                        help="Indices of the models to be trained")
 
     args = parser.parse_args()
 
@@ -281,4 +306,5 @@ if __name__ == '__main__':
          epochs=args.epochs,
          n_folds=args.folds,
          learning_rate=args.learning_rate,
-         metaphor_preference_param=args.metaphor_preference_param)
+         metaphor_preference_param=args.metaphor_preference_param,
+         models_to_train=args.models_to_train)

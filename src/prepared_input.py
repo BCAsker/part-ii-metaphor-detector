@@ -19,13 +19,14 @@ class Prepared:
         self.local_attention_mask = None
         self.local_token_type_ids = None
 
+        self.prepare_inputs(max_length)
         # See if we have cached a set of inputs for our model and use that, otherwise do the necessary work
-        if self.check_prepared(name) and (
-                len(torch.load('../data/intermediate/' + name + '_global_input_ids.pt')[0]) == max_length):
-            self.load_prepared()
-        else:
-            self.prepare_inputs(max_length)
-            self.save_prepared()
+        # if self.check_prepared(name) and (
+        #         len(torch.load('../data/intermediate/' + name + '_global_input_ids.pt')[0]) == max_length):
+        #     self.load_prepared()
+        # else:
+        #     self.prepare_inputs(max_length)
+        #     self.save_prepared()
 
     # Save a prepared object so that we don't have repeat work
     def save_prepared(self):
