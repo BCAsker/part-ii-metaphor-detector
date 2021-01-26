@@ -1,7 +1,5 @@
 import torch
-import numpy as np
 import os
-import random
 from transformers import RobertaTokenizer
 
 
@@ -20,15 +18,8 @@ class Prepared:
         self.local_token_type_ids = None
 
         self.prepare_inputs(max_length)
-        # See if we have cached a set of inputs for our model and use that, otherwise do the necessary work
-        # if self.check_prepared(name) and (
-        #         len(torch.load('../data/intermediate/' + name + '_global_input_ids.pt')[0]) == max_length):
-        #     self.load_prepared()
-        # else:
-        #     self.prepare_inputs(max_length)
-        #     self.save_prepared()
 
-    # Save a prepared object so that we don't have repeat work
+    # Save a prepared object so that we don't have to waste work each time we run the program. Useful in frequent tests
     def save_prepared(self):
         torch.save(self.global_input_ids, '../data/intermediate/' + self.name + '_global_input_ids.pt')
         torch.save(self.global_attention_mask, '../data/intermediate/' + self.name + '_global_attention_mask.pt')
@@ -37,7 +28,7 @@ class Prepared:
         torch.save(self.local_attention_mask, '../data/intermediate/' + self.name + '_local_attention_mask.pt')
         torch.save(self.local_token_type_ids, '../data/intermediate/' + self.name + '_local_token_type_ids.pt')
 
-    # Load a prepared object so that we don't have repeat work
+    # Load a prepared object so that we don't have to waste work each time we run the program. Useful in frequent tests
     def load_prepared(self):
         self.global_input_ids = torch.load('../data/intermediate/' + self.name + '_global_input_ids.pt')
         self.global_attention_mask = torch.load('../data/intermediate/' + self.name + '_global_attention_mask.pt')
@@ -47,6 +38,7 @@ class Prepared:
         self.local_token_type_ids = torch.load('../data/intermediate/' + self.name + '_local_token_type_ids.pt')
         self.length = len(self.global_input_ids[0])
 
+    # Useful before load_prepared()
     @staticmethod
     def check_prepared(name):
         filename_ends = ['_global_input_ids.pt', '_global_attention_mask.pt', '_global_token_type_ids.pt',
@@ -108,27 +100,3 @@ class Prepared:
         self.local_input_ids = self.local_input_ids.to(device)
         self.local_attention_mask = self.local_attention_mask.to(device)
         self.local_token_type_ids = self.local_token_type_ids.to(device)
-
-    def to_folds(self, num_folds):
-        # Split into metaphor and literal for stratified cross validation
-        metaphor_indices = list(np.where(self.metaphor_labels.cpu().numpy() == 1)[0])
-        literal_indices = list(np.where(self.metaphor_labels.cpu().numpy() == 0)[0])
-
-        met_size = len(metaphor_indices) // num_folds
-        lit_size = len(literal_indices) // num_folds
-
-        met_rem = len(metaphor_indices) % num_folds
-        lit_rem = len(literal_indices) % num_folds
-
-        folds_indices = [[] for _ in range(num_folds)]
-        for i in range(num_folds):
-            # By starting from the back with the literals, we can make sure that the longest metaphor and literal folds
-            # don't get added together
-            folds_indices[i].extend(random.sample(metaphor_indices, k=met_size + (1 if met_rem > 0 else 0)))
-            folds_indices[num_folds-i-1].extend(random.sample(literal_indices, k=lit_size + (1 if lit_rem > 0 else 0)))
-
-            met_rem -= (1 if met_rem > 0 else 0)
-            lit_rem -= (1 if lit_rem > 0 else 0)
-
-        [random.shuffle(fold) for fold in folds_indices]
-        return [self.get_tensors(fold) for fold in folds_indices]
