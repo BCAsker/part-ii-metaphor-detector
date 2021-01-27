@@ -207,8 +207,17 @@ def create_toefl_test_dataframe(is_verb_task=False):
     return df_out
 
 
+def check_preprocessed_files_saved():
+    return os.path.exists("../data/VUA/tokenized/train_vua_tokenized.csv") and \
+        os.path.exists("../data/VUA/tokenized/test_vua_verb_tokenized.csv") and \
+        os.path.exists("../data/VUA/tokenized/test_vua_allpos_tokenized.csv") and \
+        os.path.exists("../data/TOEFL/tokenized/train_toefl_tokenized.csv") and \
+        os.path.exists("../data/TOEFL/tokenized/test_toefl_verb_tokenized.csv") and \
+        os.path.exists("../data/TOEFL/tokenized/test_toefl_allpos_tokenized.csv")
+
+
 # Preprocess data into (S, qi, yj) triples
-def main():
+def initial_preprocessing():
     df_vua_train = create_vua_train_dataframe()
     df_vua_test_verb = create_vua_test_dataframe(is_verb_task=True)
     df_vua_test_allpos = create_vua_test_dataframe(is_verb_task=False)
@@ -226,4 +235,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    initial_preprocessing()

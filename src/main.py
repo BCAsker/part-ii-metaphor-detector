@@ -2,6 +2,7 @@ import pandas as pd
 import torch
 import torch.optim as optim
 import torch.utils.data
+import preprocessing
 from prepared_input import Prepared
 from deepmet_model import DeepMet
 from constants import *
@@ -175,6 +176,13 @@ def main(use_vua=True, use_toefl=True, load_saved=False, do_cross_eval=False, do
     start = time.time()
     if model_indices is None:
         model_indices = list(range(num_folds))
+
+    if not preprocessing.check_preprocessed_files_saved():
+        print("Preparing data triples")
+        preprocessing.initial_preprocessing()
+        print("Done preparing data triples")
+        print()
+
     vua_models = []
     toefl_models = []
 
