@@ -3,6 +3,7 @@ import torch
 import torch.optim as optim
 import torch.utils.data
 import preprocessing
+import generate_training_folds
 from prepared_input import Prepared
 from deepmet_model import DeepMet
 from constants import *
@@ -181,6 +182,12 @@ def main(use_vua=True, use_toefl=True, load_saved=False, do_cross_eval=False, do
         print("Preparing data triples")
         preprocessing.initial_preprocessing()
         print("Done preparing data triples")
+        print()
+
+    if not generate_training_folds.check_folds_files_saved():
+        print("Generating training folds")
+        generate_training_folds.generate_folds()
+        print("Training folds generated")
         print()
 
     vua_models = []

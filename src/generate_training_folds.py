@@ -1,5 +1,6 @@
 import pandas as pd
 import random
+import os
 
 num_folds = 10
 vua_train_tokenized_file = "../data/VUA/tokenized/train_vua_tokenized.csv"
@@ -44,7 +45,11 @@ def add_folds_to_dataframe(folds, df):
     return df
 
 
-def main():
+def check_folds_files_saved():
+    return os.path.exists("../data/vua_train_folds.csv") and os.path.exists("../data/toefl_train_folds.csv")
+
+
+def generate_folds():
     # df_vua = pd.read_csv(vua_train_tokenized_file, header=None, names=['id'])
     df_vua_labels = pd.read_csv("../data/VUA/tokenized/train_vua_tokenized.csv", index_col='token_id',
                                 usecols=['token_id', 'metaphor'])
@@ -62,4 +67,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    generate_folds()
