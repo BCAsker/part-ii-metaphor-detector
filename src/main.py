@@ -58,13 +58,14 @@ def train_models(dataset_name, df_train, df_folds, models_to_train, experiment_n
                     with torch.cuda.amp.autocast():
                         output = model(*sample_batched[1:7])
                         loss = loss_function(output[:, 1], output[:, 0], sample_batched[0])
+                    running_loss += float(loss)
                     scaler.scale(loss).backward()
                     scaler.step(optimizer)
                     scaler.update()
                 else:
                     output = model(*sample_batched[1:7])
                     loss = loss_function(output[:, 1], output[:, 0], sample_batched[0])
-                    running_loss += loss.item()
+                    running_loss += float(loss)
                     loss.backward()
                     optimizer.step()
 
