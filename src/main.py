@@ -28,7 +28,7 @@ def train_models(dataset_name, df_train, df_folds, models_to_train, experiment_n
 
     if colab_mode:
         scaler = torch.cuda.amp.GradScaler()
-        local_size = 2 * batch_size
+        local_size = 4 * batch_size
     else:
         scaler = None
         local_size = batch_size
@@ -46,7 +46,7 @@ def train_models(dataset_name, df_train, df_folds, models_to_train, experiment_n
         for epoch in range(1, epochs + 1):
             running_loss = 0.0
             dataloader = torch.utils.data.DataLoader(train_dataset,
-                                                     batch_size=local_size * (2 if colab_mode else 1),
+                                                     batch_size=local_size,
                                                      shuffle=True,
                                                      pin_memory=True,
                                                      num_workers=4)
