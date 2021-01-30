@@ -10,44 +10,72 @@ from constants import *
 import time
 import argparse
 
-vua_fold_file = "../data/vua_train_folds.csv"
-toefl_fold_file = "../data/toefl_train_folds.csv"
-
 
 # Loss function as defined by equation (7) in the paper. (8) and (9) redundant because we train in multi-task mode
 def loss_function(estimate_metaphors, estimate_literals, targets):
     return - torch.sum(targets * torch.log(estimate_metaphors) + (1 - targets) * torch.log(estimate_literals))
 
 
-def train_models(dataset_name, df_train, df_folds, models_to_train, experiment_number, do_cross_eval, start_time):
+def train_models(dataset_name, df_train, df_folds, models_to_train, experiment_number, do_cross_eval, start_time,
+                 colab_mode):
     models = []
-    prepared_folds = []
     datasets = []
 
     for i in range(num_folds):
         fold_index = list(df_folds[df_folds['fold'] == i].index)
         prepared_fold = Prepared(f"train_{dataset_name}_{i}", df_train.loc[fold_index], max_seq_len)
-        if torch.cuda.is_available():
-            prepared_fold.to_device(torch.device(0))
-        prepared_folds.append(prepared_fold)
         datasets.append(torch.utils.data.TensorDataset(*prepared_fold.get_tensors()))
+
+    if colab_mode:
+        scaler = torch.cuda.amp.GradScaler()
+        local_size = 2 * batch_size
+    else:
+        scaler = None
+        local_size = batch_size
 
     for i in models_to_train:
         model = DeepMet(num_tokens=max_seq_len, dropout_rate=dropout_rate)
         if torch.cuda.is_available():
             model = model.to(torch.device(0))
+        model.train()
         optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
         train_dataset = torch.utils.data.ConcatDataset(datasets[0:i] + datasets[i+1:num_folds])
         eval_dataset = datasets[i]
 
         for epoch in range(1, epochs + 1):
-            model = train(train_dataset=train_dataset,
-                          model=model,
-                          optimizer=optimizer,
-                          epoch=epoch,
-                          model_num=i,
-                          start_time=start_time)
+            running_loss = 0.0
+            dataloader = torch.utils.data.DataLoader(train_dataset,
+                                                     batch_size=local_size * (2 if colab_mode else 1),
+                                                     shuffle=True,
+                                                     pin_memory=True,
+                                                     num_workers=4)
+
+            for i_batch, sample_batched in enumerate(dataloader):
+                sample_batched = [s.to(torch.device(0), non_blocking=True) for s in sample_batched]
+                optimizer.zero_grad()
+                if colab_mode:
+                    with torch.cuda.amp.autocast():
+                        output = model(*sample_batched[1:7])
+                        loss = loss_function(output[:, 1], output[:, 0], sample_batched[0])
+                    scaler.scale(loss).backward()
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    output = model(*sample_batched[1:7])
+                    loss = loss_function(output[:, 1], output[:, 0], sample_batched[0])
+                    running_loss += loss.item()
+                    loss.backward()
+                    optimizer.step()
+
+                if i_batch % 500 == 0:
+                    print(f"Model number: {i}, "
+                          f"Epoch: {epoch}, "
+                          f"Batch: {i_batch}/"
+                          f"{len(train_dataset) // local_size + (1 if len(train_dataset) % local_size > 0 else 0)}, "
+                          f"Time elapsed: {(time.time() - start_time):.1f}s, "
+                          f"Loss: {running_loss:.3f}")
+                    running_loss = 0.0
 
         if do_cross_eval:
             print("Cross validation")
@@ -63,13 +91,6 @@ def train_models(dataset_name, df_train, df_folds, models_to_train, experiment_n
             model = model.cpu()
         models.append(model)
 
-    # Make sure we leave GPU memory completely clean
-    if torch.cuda.is_available():
-        for prepared in prepared_folds:
-            prepared.to_device('cpu')
-        del prepared_folds
-        del datasets
-
     return models
 
 
@@ -81,31 +102,6 @@ def load_trained_models(dataset_name, models_to_load, experiment_number):
             f"../models/{experiment_number}/deepmet_model_{dataset_name}_{experiment_number}_{i}.model"))
         models.append(model)
     return models
-
-
-def train(train_dataset, model, optimizer, epoch, model_num, start_time):
-    model.train()
-
-    dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    running_loss = 0.0
-    for i_batch, sample_batched in enumerate(dataloader):
-        optimizer.zero_grad()
-        output = model(*sample_batched[1:7])
-        loss = loss_function(output[:, 1], output[:, 0], sample_batched[0])
-        running_loss += loss.item()
-        loss.backward()
-        optimizer.step()
-
-        if i_batch % 500 == 0:
-            print(f"Model number: {model_num}, "
-                  f"Epoch: {epoch}, "
-                  f"Batch: {i_batch}/"
-                  f"{len(train_dataset) // batch_size + (1 if len(train_dataset) % batch_size > 0 else 0)}, "
-                  f"Time elapsed: {(time.time() - start_time):.1f}s, "
-                  f"Loss: {running_loss:.3f}")
-            running_loss = 0.0
-
-    return model
 
 
 def evaluate(eval_dataset, models, start_time, model_num=None):
@@ -172,7 +168,7 @@ def evaluate(eval_dataset, models, start_time, model_num=None):
 
 
 def main(use_vua=True, use_toefl=True, load_saved=False, do_cross_eval=False, do_final_eval=False, model_indices=None,
-         expr_num=0):
+         expr_num=0, colab_mode=False):
 
     start = time.time()
     if model_indices is None:
@@ -205,7 +201,7 @@ def main(use_vua=True, use_toefl=True, load_saved=False, do_cross_eval=False, do
             vua_models = train_models(dataset_name="VUA", df_train=df_train_vua, df_folds=df_train_vua_folds,
                                       models_to_train=model_indices, experiment_number=expr_num,
                                       do_cross_eval=do_cross_eval,
-                                      start_time=start)
+                                      start_time=start, colab_mode=colab_mode)
             print("VUA train complete")
 
     if use_toefl:
@@ -220,7 +216,7 @@ def main(use_vua=True, use_toefl=True, load_saved=False, do_cross_eval=False, do
             toefl_models = train_models(dataset_name="TOEFL", df_train=df_train_toefl, df_folds=df_train_toefl_folds,
                                         models_to_train=model_indices, experiment_number=expr_num,
                                         do_cross_eval=do_cross_eval,
-                                        start_time=start)
+                                        start_time=start, colab_mode=colab_mode)
             print("TOEFL train complete")
             pass
 
@@ -290,6 +286,7 @@ if __name__ == '__main__':
     parser.add_argument("--do_cross_eval", default=False, required=False, type=bool)
     parser.add_argument("--do_final_eval", default=False, required=False, type=bool)
     parser.add_argument("--experiment_number", default=0, required=False, help="Number to be given to the saved models")
+    parser.add_argument("--colab_mode", default=False, required=False, type=bool)
     parser.add_argument("--model_indices", default=None, nargs="+", type=int, required=False,
                         help="Indices of the models to be trained")
 
@@ -302,6 +299,7 @@ if __name__ == '__main__':
     do_final_eval_arg = args.do_final_eval
     expr_num_arg = args.experiment_number
     model_indices_arg = args.model_indices
+    colab_mode_arg = args.colab_mode
 
     main(use_vua=use_vua_arg,
          use_toefl=use_toefl_arg,
@@ -309,5 +307,6 @@ if __name__ == '__main__':
          do_cross_eval=do_cross_eval_arg,
          do_final_eval=do_final_eval_arg,
          expr_num=expr_num_arg,
-         model_indices=model_indices_arg)
+         model_indices=model_indices_arg,
+         colab_mode=colab_mode_arg)
 
