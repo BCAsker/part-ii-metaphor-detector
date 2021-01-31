@@ -281,20 +281,36 @@ def main(use_vua=True, use_toefl=True, load_saved=False, do_cross_eval=False, do
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="DeepMet")
-    parser.add_argument("--use_vua", default=True, required=False, type=bool)
-    parser.add_argument("--use_toefl", default=True, required=False, type=bool)
-    parser.add_argument("--load_saved_models", default=False, required=False, type=bool)
-    parser.add_argument("--do_cross_eval", default=False, required=False, type=bool)
-    parser.add_argument("--do_final_eval", default=False, required=False, type=bool)
-    parser.add_argument("--experiment_number", default=0, required=False, help="Number to be given to the saved models")
-    parser.add_argument("--colab_mode", default=False, required=False, type=bool)
-    parser.add_argument("--model_indices", default=None, nargs="+", type=int, required=False,
+    parser.add_argument('--vua', dest='vua', action='store_true')
+    parser.add_argument('--no_vua', dest='vua', action='store_false')
+
+    parser.add_argument('--toefl', dest='toefl', action='store_true')
+    parser.add_argument('--no_toefl', dest='toefl', action='store_false')
+
+    parser.add_argument('--load_saved_models', dest='load_saved_models', action='store_true')
+    parser.add_argument('--no_load_saved_models', dest='load_saved_models', action='store_false')
+
+    parser.add_argument('--do_cross_eval', dest='do_cross_eval', action='store_true')
+    parser.add_argument('--no_cross_eval', dest='do_cross_eval', action='store_false')
+
+    parser.add_argument('--do_final_eval', dest='do_final_eval', action='store_true')
+    parser.add_argument('--no_final_eval', dest='do_final_eval', action='store_false')
+
+    parser.add_argument('--colab_mode', dest='colab_mode', action='store_true')
+    parser.add_argument('--no_colab_mode', dest='colab_mode', action='store_false')
+
+    parser.add_argument('--experiment_number', default=0, required=False, help="Number to be given to the saved models")
+
+    parser.add_argument('--model_indices', default=None, nargs="+", type=int, required=False,
                         help="Indices of the models to be trained")
+
+    parser.set_defaults(vua=True, toefl=True, load_saved_models=False, do_cross_eval=False, do_final_eval=False,
+                        colab_mode=False)
 
     args = parser.parse_args()
 
-    use_vua_arg = args.use_vua
-    use_toefl_arg = args.use_toefl
+    use_vua_arg = args.vua
+    use_toefl_arg = args.toefl
     load_saved_models_arg = args.load_saved_models
     do_cross_eval_arg = args.do_cross_eval
     do_final_eval_arg = args.do_final_eval
