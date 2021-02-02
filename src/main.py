@@ -52,7 +52,8 @@ def train_models(dataset_name, df_train, df_folds, models_to_train, experiment_n
                                                      num_workers=4)
 
             for i_batch, sample_batched in enumerate(dataloader):
-                sample_batched = [s.to(torch.device(0), non_blocking=True) for s in sample_batched]
+                if torch.cuda.is_available():
+                    sample_batched = [s.to(torch.device(0), non_blocking=True) for s in sample_batched]
                 optimizer.zero_grad()
                 if colab_mode:
                     with torch.cuda.amp.autocast():
@@ -95,13 +96,31 @@ def train_models(dataset_name, df_train, df_folds, models_to_train, experiment_n
     return models
 
 
-def load_trained_models(dataset_name, models_to_load, experiment_number):
+def load_trained_models(dataset_name, models_to_load, experiment_number, do_cross_eval, df_train, df_folds, start):
     models = []
+    cross_eval_datasets = []
+
+    if do_cross_eval:
+        for i in range(num_folds):
+            fold_index = list(df_folds[df_folds['fold'] == i].index)
+            prepared_fold = Prepared(f"train_VUA_{i}", df_train.loc[fold_index], max_seq_len)
+            cross_eval_datasets.append(torch.utils.data.TensorDataset(*prepared_fold.get_tensors()))
+        print("Cross validation")
+
     for i in models_to_load:
         model = DeepMet(num_tokens=max_seq_len, dropout_rate=dropout_rate)
         model.load_state_dict(torch.load(
             f"../models/{experiment_number}/deepmet_model_{dataset_name}_{experiment_number}_{i}.model"))
+
+        if do_cross_eval:
+            evaluate(eval_dataset=cross_eval_datasets[i],
+                     models=model,
+                     model_num=i,
+                     start_time=start)
+            print()
+
         models.append(model)
+
     return models
 
 
@@ -109,8 +128,7 @@ def evaluate(eval_dataset, models, start_time, model_num=None):
     if type(models) == DeepMet:
         models = [models]
     [model.eval() for model in models]
-    dataloader = torch.utils.data.DataLoader(eval_dataset, batch_size=batch_size)
-
+    dataloader = torch.utils.data.DataLoader(eval_dataset, batch_size=batch_size, pin_memory=True, num_workers=4)
     predictions = torch.zeros(len(eval_dataset), device=torch.device(0) if torch.cuda.is_available() else 'cpu')
     with torch.no_grad():
         for i_model in range(len(models)):
@@ -119,6 +137,8 @@ def evaluate(eval_dataset, models, start_time, model_num=None):
 
             probabilities = []
             for i_batch, sample_batched in enumerate(dataloader):
+                if torch.cuda.is_available():
+                    sample_batched = [s.to(torch.device(0), non_blocking=True) for s in sample_batched]
                 output = (models[i_model])(*(sample_batched[1:7]))
                 probabilities.append(output)
                 if i_batch % 250 == 0:
@@ -191,14 +211,18 @@ def main(use_vua=True, use_toefl=True, load_saved=False, do_cross_eval=False, do
     toefl_models = []
 
     if use_vua:
+        df_train_vua = pd.read_csv("../data/VUA/tokenized/train_vua_tokenized.csv", index_col='token_id',
+                                   na_values=None, keep_default_na=False)
+        df_train_vua_folds = pd.read_csv("../data/vua_train_folds.csv", index_col='token_id')
+
         if load_saved:
-            vua_models = load_trained_models(
-                dataset_name="VUA", models_to_load=model_indices, experiment_number=expr_num)
+            print("Loading trained VUA models")
+            vua_models = load_trained_models(dataset_name="VUA", models_to_load=model_indices,
+                                             experiment_number=expr_num, do_cross_eval=do_cross_eval,
+                                             df_train=df_train_vua, df_folds=df_train_vua_folds, start=start)
+            print("Finished loading trained VUA models")
         else:
             print("Entering VUA train")
-            df_train_vua = pd.read_csv("../data/VUA/tokenized/train_vua_tokenized.csv",
-                                       index_col='token_id', na_values=None, keep_default_na=False)
-            df_train_vua_folds = pd.read_csv("../data/vua_train_folds.csv", index_col='token_id')
             vua_models = train_models(dataset_name="VUA", df_train=df_train_vua, df_folds=df_train_vua_folds,
                                       models_to_train=model_indices, experiment_number=expr_num,
                                       do_cross_eval=do_cross_eval,
@@ -206,20 +230,23 @@ def main(use_vua=True, use_toefl=True, load_saved=False, do_cross_eval=False, do
             print("VUA train complete")
 
     if use_toefl:
+        df_train_toefl = pd.read_csv("../data/TOEFL/tokenized/train_toefl_tokenized.csv",
+                                     index_col='token_id', keep_default_na=False)
+        df_train_toefl_folds = pd.read_csv("../data/toefl_train_folds.csv", index_col='token_id')
+
         if load_saved:
-            toefl_models = load_trained_models(
-                dataset_name="TOEFL", models_to_load=model_indices, experiment_number=expr_num)
+            print("Loading trained TOEFL models")
+            toefl_models = load_trained_models(dataset_name="TOEFL", models_to_load=model_indices,
+                                               experiment_number=expr_num, do_cross_eval=do_cross_eval,
+                                               df_train=df_train_toefl, df_folds=df_train_toefl_folds, start=start)
+            print("Finished loading trained TOEFL models")
         else:
             print("Entering TOEFL train")
-            df_train_toefl = pd.read_csv("../data/TOEFL/tokenized/train_toefl_tokenized.csv",
-                                         index_col='token_id', keep_default_na=False)
-            df_train_toefl_folds = pd.read_csv("../data/toefl_train_folds.csv", index_col='token_id')
             toefl_models = train_models(dataset_name="TOEFL", df_train=df_train_toefl, df_folds=df_train_toefl_folds,
                                         models_to_train=model_indices, experiment_number=expr_num,
                                         do_cross_eval=do_cross_eval,
                                         start_time=start, colab_mode=colab_mode)
             print("TOEFL train complete")
-            pass
 
     if do_final_eval:
         if use_vua:
@@ -229,10 +256,6 @@ def main(use_vua=True, use_toefl=True, load_saved=False, do_cross_eval=False, do
                                              index_col='token_id', keep_default_na=False)
             test_vua_verb_prepared = Prepared('test_vua_verb', df_test_vua_verb, max_seq_len)
             test_vua_allpos_prepared = Prepared('test_vua_allpos', df_test_vua_allpos, max_seq_len)
-
-            if torch.cuda.is_available():
-                test_vua_verb_prepared.to_device(torch.device(0))
-                test_vua_allpos_prepared.to_device(torch.device(0))
 
             test_vua_verb_dataset = torch.utils.data.TensorDataset(*test_vua_verb_prepared.get_tensors())
             test_vua_allpos_dataset = torch.utils.data.TensorDataset(*test_vua_allpos_prepared.get_tensors())
@@ -257,10 +280,6 @@ def main(use_vua=True, use_toefl=True, load_saved=False, do_cross_eval=False, do
                                                index_col='token_id', keep_default_na=False)
             test_toefl_verb_prepared = Prepared('test_toefl_verb', df_test_toefl_verb, max_seq_len)
             test_toefl_allpos_prepared = Prepared('test_toefl_allpos', df_test_toefl_allpos, max_seq_len)
-
-            if torch.cuda.is_available():
-                test_toefl_verb_prepared.to_device(torch.device(0))
-                test_toefl_allpos_prepared.to_device(torch.device(0))
 
             test_toefl_verb_dataset = torch.utils.data.TensorDataset(*test_toefl_verb_prepared.get_tensors())
             test_toefl_allpos_dataset = torch.utils.data.TensorDataset(*test_toefl_allpos_prepared.get_tensors())
