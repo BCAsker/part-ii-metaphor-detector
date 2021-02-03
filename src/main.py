@@ -57,14 +57,14 @@ def train_models(dataset_name, df_train, df_folds, models_to_train, experiment_n
                 optimizer.zero_grad()
                 if colab_mode:
                     with torch.cuda.amp.autocast():
-                        output = model(*sample_batched[1:7])
+                        output = model(*sample_batched[1:4])
                         loss = loss_function(output[:, 1], output[:, 0], sample_batched[0])
                     running_loss += float(loss)
                     scaler.scale(loss).backward()
                     scaler.step(optimizer)
                     scaler.update()
                 else:
-                    output = model(*sample_batched[1:7])
+                    output = model(*sample_batched[1:4])
                     loss = loss_function(output[:, 1], output[:, 0], sample_batched[0])
                     running_loss += float(loss)
                     loss.backward()
@@ -139,7 +139,7 @@ def evaluate(eval_dataset, models, start_time, model_num=None):
             for i_batch, sample_batched in enumerate(dataloader):
                 if torch.cuda.is_available():
                     sample_batched = [s.to(torch.device(0), non_blocking=True) for s in sample_batched]
-                output = (models[i_model])(*(sample_batched[1:7]))
+                output = (models[i_model])(*(sample_batched[1:4]))
                 probabilities.append(output)
                 if i_batch % 250 == 0:
                     print(f"Model number: {i_model if model_num is None else model_num}, "
