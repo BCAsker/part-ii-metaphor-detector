@@ -4,6 +4,7 @@ import re
 import spacy
 import os
 from spacy.tokenizer import Tokenizer
+from spellchecker import SpellChecker
 
 vua_train = "../data/VUA/vuamc_corpus_train.csv"
 vua_test = "../data/VUA/vuamc_corpus_test.csv"
@@ -47,10 +48,12 @@ def create_vua_train_dataframe():
     sentences = []
     local_contexts = []
 
-    for doc, text_id, sentence_id in zip(
-            nlp.pipe([re.sub('M_', '', sentence) for sentence in df_raw['sentence_txt']], disable=['ner']),
-            df_raw['txt_id'], df_raw['sentence_id']):
+    spell = SpellChecker()
+    originals = [re.sub('M_', '', sentence) for sentence in df_raw['sentence_txt']]
+    corrected = [' '.join([spell.correction(word) for word in sentence.split()]) for sentence in originals]
+    docs = nlp.pipe(corrected, disable=['ner'])
 
+    for doc, text_id, sentence_id in zip(docs, df_raw['txt_id'], df_raw['sentence_id']):
         split_sentence = str(doc).split(', ')
         split_index = 0
 
@@ -89,9 +92,11 @@ def create_vua_test_dataframe(is_verb_task=False):
     sentences = []
     local_contexts = []
 
-    for doc, text_id, sentence_id in zip(nlp.pipe(df_raw['sentence_txt'], disable=['ner']), df_raw['txt_id'],
-                                         df_raw['sentence_id']):
+    spell = SpellChecker()
+    corrected = [' '.join([spell.correction(word) for word in sentence.split()]) for sentence in df_raw['sentence_txt']]
+    docs = nlp.pipe(corrected, disable=['ner'])
 
+    for doc, text_id, sentence_id in zip(docs, df_raw['txt_id'], df_raw['sentence_id']):
         split_sentence = str(doc).split(', ')
         split_index = 0
 
@@ -137,7 +142,13 @@ def create_toefl_train_dataframe():
                 metaphors.extend([is_metaphor(token) for sentence in file for token in sentence.split()])
                 file.seek(0)
                 sentence_id = 1
-                for doc in nlp.pipe([re.sub('M_', '', sentence.strip()) for sentence in file], disable=['ner']):
+
+                spell = SpellChecker()
+                originals = [re.sub('M_', '', sentence.strip()) for sentence in file]
+                corrected = [' '.join([spell.correction(word) for word in sentence.split()]) for sentence in originals]
+                docs = nlp.pipe(corrected, disable=['ner'])
+
+                for doc in docs:
                     split_sentence = str(doc).split(', ')
                     split_index = 0
                     for offset, token in zip(range(1, len(doc) + 1), doc):
@@ -180,7 +191,13 @@ def create_toefl_test_dataframe(is_verb_task=False):
                 metaphors.extend([is_metaphor(token) for sentence in file for token in sentence.split()])
                 file.seek(0)
                 sentence_id = 1
-                for doc in nlp.pipe([re.sub('M_', '', sentence.strip()) for sentence in file], disable=['ner']):
+
+                spell = SpellChecker()
+                corrected = [' '.join([spell.correction(word) for word in sentence.strip().split()])
+                             for sentence in file]
+                docs = nlp.pipe(corrected, disable=['ner'])
+
+                for doc in docs:
                     split_sentence = str(doc).split(', ')
                     split_index = 0
                     for offset, token in zip(range(1, len(doc) + 1), doc):
