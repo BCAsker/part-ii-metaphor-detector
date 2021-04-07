@@ -32,6 +32,19 @@ def is_metaphor(token):
     return metaphor
 
 
+# Check to see if we should perform spell checking on a given word, then carry out the spell checking if we should.
+def do_spellcheck(checker, word):
+    # This condition aims to solve a lot of different problems caused by an overzealous spellchecker. In short though,
+    # it aims to solve problems with proper nouns (approximated by the capitalization check), abbreviations, lone
+    # characters, rogue punctuation and apostrophes 
+    punct = ["'", "…", ".", ",", "?", '"', "_", "‘", "’", "`", "=", "‒", "–", "—", "―", "⁓", "−", "+", "1", "2", "3",
+             "4", "5", "6", "7", "8", "9", "0"]
+    if word[0] not in punct and not word[0].isupper() and word[-1] != '.' and word != "n't" and len(word) > 1:
+        return checker.correction(word)
+    else:
+        return word
+
+
 # Create (S, qi, yj) triples from the VUA data, as defined in DeepMet paper. Use spacy to tokenize and get POS tags
 # One row for each token
 def create_vua_train_dataframe():
@@ -50,7 +63,7 @@ def create_vua_train_dataframe():
 
     spell = SpellChecker()
     originals = [re.sub('M_', '', sentence) for sentence in df_raw['sentence_txt']]
-    corrected = [' '.join([spell.correction(word) for word in sentence.split()]) for sentence in originals]
+    corrected = [' '.join([do_spellcheck(spell, word) for word in sentence.split()]) for sentence in originals]
     docs = nlp.pipe(corrected, disable=['ner'])
 
     for doc, text_id, sentence_id in zip(docs, df_raw['txt_id'], df_raw['sentence_id']):
@@ -93,7 +106,8 @@ def create_vua_test_dataframe(is_verb_task=False):
     local_contexts = []
 
     spell = SpellChecker()
-    corrected = [' '.join([spell.correction(word) for word in sentence.split()]) for sentence in df_raw['sentence_txt']]
+    corrected = [' '.join([do_spellcheck(spell, word) for word in sentence.split()]) for
+                 sentence in df_raw['sentence_txt']]
     docs = nlp.pipe(corrected, disable=['ner'])
 
     for doc, text_id, sentence_id in zip(docs, df_raw['txt_id'], df_raw['sentence_id']):
@@ -145,7 +159,8 @@ def create_toefl_train_dataframe():
 
                 spell = SpellChecker()
                 originals = [re.sub('M_', '', sentence.strip()) for sentence in file]
-                corrected = [' '.join([spell.correction(word) for word in sentence.split()]) for sentence in originals]
+                corrected = [' '.join([do_spellcheck(spell, word) for word in sentence.split()])
+                             for sentence in originals]
                 docs = nlp.pipe(corrected, disable=['ner'])
 
                 for doc in docs:
@@ -193,7 +208,7 @@ def create_toefl_test_dataframe(is_verb_task=False):
                 sentence_id = 1
 
                 spell = SpellChecker()
-                corrected = [' '.join([spell.correction(word) for word in sentence.strip().split()])
+                corrected = [' '.join([do_spellcheck(spell, word) for word in sentence.strip().split()])
                              for sentence in file]
                 docs = nlp.pipe(corrected, disable=['ner'])
 
