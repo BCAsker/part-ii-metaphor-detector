@@ -176,3 +176,33 @@ Accuracy: 0.951
 Precision: 0.643
 Recall: 0.731
 f1: 0.687
+
+
+EXPERIMENT 8 - Spell Correction
+VUA Verb evaluation on test set
+TP = 1344, FP = 428, FN = 417, TN = 3684
+Accuracy: 0.856
+Precision: 0.758
+Recall: 0.763
+f1: 0.761
+
+VUA All POS evaluation on test set
+TP = 2852, FP = 1080, FN = 1130, TN = 17134
+Accuracy: 0.900
+Precision: 0.725
+Recall: 0.716
+f1: 0.721
+
+TOEFL Verb evaluation on test set
+TP = 242, FP = 120, FN = 62, TN = 1877
+Accuracy: 0.921
+Precision: 0.669
+Recall: 0.796
+f1: 0.732
+
+TOEFL All POS evaluation on test set
+TP = 499, FP = 255, FN = 162, TN = 8098
+Accuracy: 0.954
+Precision: 0.662
+Recall: 0.755
+f1: 0.708
