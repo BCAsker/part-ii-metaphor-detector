@@ -208,8 +208,9 @@ def create_toefl_test_dataframe(is_verb_task=False):
                 sentence_id = 1
 
                 spell = SpellChecker()
+                originals = [re.sub('M_', '', sentence.strip()) for sentence in file]
                 corrected = [' '.join([do_spellcheck(spell, word) for word in sentence.strip().split()])
-                             for sentence in file]
+                             for sentence in originals]
                 docs = nlp.pipe(corrected, disable=['ner'])
 
                 for doc in docs:
