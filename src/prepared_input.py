@@ -36,9 +36,7 @@ class Prepared:
         return all([os.path.exists('../data/intermediate/' + str(name) + end) for end in filename_ends])
 
     def prepare_inputs(self, max_length=0):
-        global_context_input = self.df['sentence'] + " </s> " + self.df['query'] + " </s> " + self.df['pos'] + " </s> "\
-            + self.df['fgpos']
-
+        global_context_input = self.df['sentence'] + " </s> " + self.df['query']
         tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
         # We've added the intermediate separator tokens, but let the tokenizer handle the start, end and padding tokens
         if max_length <= 0:
