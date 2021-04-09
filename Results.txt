@@ -1,0 +1,208 @@
+EXPERIMENT 2 - basic
+Loading models
+VUA Verb evaluation on test set
+TP = 1405, FP = 462, FN = 356, TN = 3650
+Accuracy: 0.861
+Precision: 0.753
+Recall: 0.798
+f1: 0.775
+
+VUA All POS evaluation on test set
+TP = 2935, FP = 1102, FN = 1047, TN = 17112
+Accuracy: 0.903
+Precision: 0.727
+Recall: 0.737
+f1: 0.732
+
+TOEFL Verb evaluation on test set
+TP = 239, FP = 135, FN = 65, TN = 1862
+Accuracy: 0.913
+Precision: 0.639
+Recall: 0.786
+f1: 0.713
+
+TOEFL All POS evaluation on test set
+TP = 493, FP = 272, FN = 168, TN = 8081
+Accuracy: 0.951
+Precision: 0.644
+Recall: 0.746
+f1: 0.695
+
+
+EXPERIMENT 3 - 16-bit cuda.amp
+VUA Verb evaluation on test set
+TP = 1397, FP = 496, FN = 364, TN = 3616
+Accuracy: 0.854
+Precision: 0.738
+Recall: 0.793
+f1: 0.766
+
+VUA All POS evaluation on test set
+TP = 2944, FP = 1164, FN = 1038, TN = 17050
+Accuracy: 0.901
+Precision: 0.717
+Recall: 0.739
+f1: 0.728
+
+TOEFL Verb evaluation on test set
+TP = 238, FP = 131, FN = 66, TN = 1866
+Accuracy: 0.914
+Precision: 0.645
+Recall: 0.783
+f1: 0.714
+
+TOEFL All POS evaluation on test set
+Accuracy: 0.952
+Precision: 0.649
+Recall: 0.744
+f1: 0.697
+
+
+EXPERIMENT 4 - minus local context
+VUA Verb evaluation on test set
+TP = 1391, FP = 500, FN = 370, TN = 3612
+Accuracy: 0.852
+Precision: 0.736
+Recall: 0.790
+f1: 0.763
+
+VUA All POS evaluation on test set
+TP = 2919, FP = 1166, FN = 1063, TN = 17048
+Accuracy: 0.900
+Precision: 0.715
+Recall: 0.733
+f1: 0.724
+
+TOEFL Verb evaluation on test set
+TP = 224, FP = 119, FN = 80, TN = 1878
+Accuracy: 0.914
+Precision: 0.653
+Recall: 0.737
+f1: 0.695
+
+TOEFL All POS evaluation on test set
+TP = 472, FP = 247, FN = 189, TN = 8106
+Accuracy: 0.952
+Precision: 0.656
+Recall: 0.714
+f1: 0.685
+
+
+EXPERIMENT 5 - minus global context
+VUA Verb evaluation on test set
+TP = 1394, FP = 580, FN = 367, TN = 3532
+Accuracy: 0.839
+Precision: 0.706
+Recall: 0.792
+f1: 0.749
+
+VUA All POS evaluation on test set
+TP = 2929, FP = 1348, FN = 1053, TN = 16866
+Accuracy: 0.892
+Precision: 0.685
+Recall: 0.736
+f1: 0.710
+
+TOEFL Verb evaluation on test set
+TP = 231, FP = 119, FN = 73, TN = 1878
+Accuracy: 0.917
+Precision: 0.660
+Recall: 0.760
+f1: 0.710
+
+TOEFL All POS evaluation on test set
+TP = 475, FP = 254, FN = 186, TN = 8099
+Accuracy: 0.951
+Precision: 0.652
+Recall: 0.719
+f1: 0.685
+
+
+EXPERIMENT 6 - minus FPGOS
+VUA Verb evaluation on test set
+TP = 1347, FP = 414, FN = 414, TN = 3698
+Accuracy: 0.859
+Precision: 0.765
+Recall: 0.765
+f1: 0.765
+
+VUA All POS evaluation on test set
+TP = 2858, FP = 1034, FN = 1124, TN = 17180
+Accuracy: 0.903
+Precision: 0.734
+Recall: 0.718
+f1: 0.726
+
+TOEFL Verb evaluation on test set
+TP = 232, FP = 125, FN = 72, TN = 1872
+Accuracy: 0.914
+Precision: 0.650
+Recall: 0.763
+f1: 0.707
+
+TOEFL All POS evaluation on test set
+TP = 476, FP = 251, FN = 185, TN = 8102
+Accuracy: 0.952
+Precision: 0.655
+Recall: 0.720
+f1: 0.687
+
+
+EXPERIMENT 7 - minus POS
+VUA Verb evaluation on test set
+TP = 1391, FP = 527, FN = 370, TN = 3585
+Accuracy: 0.847
+Precision: 0.725
+Recall: 0.790
+f1: 0.758
+
+VUA All POS evaluation on test set
+TP = 2919, FP = 1247, FN = 1063, TN = 16967
+Accuracy: 0.896
+Precision: 0.701
+Recall: 0.733
+f1: 0.717
+
+TOEFL Verb evaluation on test set
+TP = 233, FP = 128, FN = 71, TN = 1869
+Accuracy: 0.914
+Precision: 0.645
+Recall: 0.766
+f1: 0.706
+
+TOEFL All POS evaluation on test set
+TP = 483, FP = 268, FN = 178, TN = 8085
+Accuracy: 0.951
+Precision: 0.643
+Recall: 0.731
+f1: 0.687
+
+
+EXPERIMENT 8 - Spell Correction
+VUA Verb evaluation on test set
+TP = 1344, FP = 428, FN = 417, TN = 3684
+Accuracy: 0.856
+Precision: 0.758
+Recall: 0.763
+f1: 0.761
+
+VUA All POS evaluation on test set
+TP = 2852, FP = 1080, FN = 1130, TN = 17134
+Accuracy: 0.900
+Precision: 0.725
+Recall: 0.716
+f1: 0.721
+
+TOEFL Verb evaluation on test set
+TP = 242, FP = 120, FN = 62, TN = 1877
+Accuracy: 0.921
+Precision: 0.669
+Recall: 0.796
+f1: 0.732
+
+TOEFL All POS evaluation on test set
+TP = 499, FP = 255, FN = 162, TN = 8098
+Accuracy: 0.954
+Precision: 0.662
+Recall: 0.755
+f1: 0.708

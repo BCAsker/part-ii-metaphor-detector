@@ -124,7 +124,13 @@ def load_trained_models(dataset_name, models_to_load, experiment_number, do_cros
     return models
 
 
-def evaluate(eval_dataset, models, start_time, model_num=None):
+def write_mistakes(indices, df, dataset_name, track):
+    df_mistakes = df.loc[indices]
+    df_mistakes.to_csv(f"../data/{dataset_name}/{track}_mistakes.csv",
+                       columns=['query', 'metaphor', 'pos', 'fgpos', 'sentence', 'local'])  # Change column order
+
+
+def evaluate(eval_dataset, models, start_time, model_num=None, indices=None):
     if type(models) == DeepMet:
         models = [models]
     [model.eval() for model in models]
@@ -163,13 +169,18 @@ def evaluate(eval_dataset, models, start_time, model_num=None):
     fn = 0
     tn = 0
 
-    for prediction, actual in zip(predictions, actuals):
+    mistake_indices = []
+    for i, (prediction, actual) in enumerate(zip(predictions, actuals)):
         if prediction == actual == 1:
             tp += 1
         elif prediction == 1 and actual == 0:
             fp += 1
+            if indices is not None:
+                mistake_indices.append(indices[i])
         elif prediction == 0 and actual == 1:
             fn += 1
+            if indices is not None:
+                mistake_indices.append(indices[i])
         else:
             tn += 1
 
@@ -185,7 +196,7 @@ def evaluate(eval_dataset, models, start_time, model_num=None):
     print(f"Recall: {rec:.3f}")
     print(f"f1: {f1:.3f}")
 
-    return f1
+    return mistake_indices
 
 
 def main(use_vua=True, use_toefl=True, load_saved=False, do_cross_eval=False, do_final_eval=False, model_indices=None,
@@ -261,16 +272,20 @@ def main(use_vua=True, use_toefl=True, load_saved=False, do_cross_eval=False, do
             test_vua_allpos_dataset = torch.utils.data.TensorDataset(*test_vua_allpos_prepared.get_tensors())
 
             print("VUA Verb evaluation on test set")
-            evaluate(eval_dataset=test_vua_verb_dataset,
-                     models=vua_models,
-                     start_time=start,
-                     model_num=None)
+            verb_mistakes = evaluate(eval_dataset=test_vua_verb_dataset,
+                                     models=vua_models,
+                                     start_time=start,
+                                     model_num=None,
+                                     indices=df_test_vua_verb.index)
+            write_mistakes(verb_mistakes, df_test_vua_verb, 'VUA', 'VUA_Verb')
             print()
             print("VUA All POS evaluation on test set")
-            evaluate(eval_dataset=test_vua_allpos_dataset,
-                     models=vua_models,
-                     start_time=start,
-                     model_num=None)
+            all_pos_mistakes = evaluate(eval_dataset=test_vua_allpos_dataset,
+                                        models=vua_models,
+                                        start_time=start,
+                                        model_num=None,
+                                        indices=df_test_vua_allpos.index)
+            write_mistakes(all_pos_mistakes, df_test_vua_allpos, 'VUA', 'VUA_All_POS')
             print()
 
         if use_toefl:
@@ -285,16 +300,20 @@ def main(use_vua=True, use_toefl=True, load_saved=False, do_cross_eval=False, do
             test_toefl_allpos_dataset = torch.utils.data.TensorDataset(*test_toefl_allpos_prepared.get_tensors())
 
             print("TOEFL Verb evaluation on test set")
-            evaluate(eval_dataset=test_toefl_verb_dataset,
-                     models=toefl_models,
-                     start_time=start,
-                     model_num=None)
+            verb_mistakes = evaluate(eval_dataset=test_toefl_verb_dataset,
+                                     models=toefl_models,
+                                     start_time=start,
+                                     model_num=None,
+                                     indices=df_test_toefl_verb.index)
+            write_mistakes(verb_mistakes, df_test_toefl_verb, 'TOEFL', 'TOEFL_Verb')
             print()
             print("TOEFL All POS evaluation on test set")
-            evaluate(eval_dataset=test_toefl_allpos_dataset,
-                     models=toefl_models,
-                     start_time=start,
-                     model_num=None)
+            all_pos_mistakes = evaluate(eval_dataset=test_toefl_allpos_dataset,
+                                        models=toefl_models,
+                                        start_time=start,
+                                        model_num=None,
+                                        indices=df_test_toefl_allpos.index)
+            write_mistakes(all_pos_mistakes, df_test_toefl_allpos, 'TOEFL', 'TOEFL_All_POS')
             print()
 
 
