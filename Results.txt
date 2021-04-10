@@ -206,3 +206,33 @@ Accuracy: 0.954
 Precision: 0.662
 Recall: 0.755
 f1: 0.708
+
+
+EXPERIMENT 9 - Just Global Context
+VUA Verb evaluation on test set
+TP = 1373, FP = 496, FN = 388, TN = 3616
+Accuracy: 0.849
+Precision: 0.735
+Recall: 0.780
+f1: 0.757
+
+VUA All POS evaluation on test set
+TP = 2865, FP = 1119, FN = 1117, TN = 17095
+Accuracy: 0.899
+Precision: 0.719
+Recall: 0.719
+f1: 0.719
+
+TOEFL Verb evaluation on test set
+TP = 232, FP = 132, FN = 72, TN = 1865
+Accuracy: 0.911
+Precision: 0.637
+Recall: 0.763
+f1: 0.700
+
+TOEFL All POS evaluation on test set
+TP = 478, FP = 261, FN = 183, TN = 8092
+Accuracy: 0.951
+Precision: 0.647
+Recall: 0.723
+f1: 0.685
