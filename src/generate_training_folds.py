@@ -1,8 +1,9 @@
 import pandas as pd
 import random
 import os
+from constants import *
 
-num_folds = 10
+#num_folds = 10
 vua_train_tokenized_file = "../data/VUA/tokenized/train_vua_tokenized.csv"
 toefl_train_tokenized_file = "../data/TOEFL/tokenized/train_toefl_tokenized.csv"
 
