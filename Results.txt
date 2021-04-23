@@ -236,3 +236,33 @@ Accuracy: 0.951
 Precision: 0.647
 Recall: 0.723
 f1: 0.685
+
+
+EXPERIMENT 10 - NO ENSEMBLE
+VUA Verb evaluation on test set
+TP = 1089, FP = 221, FN = 672, TN = 3891
+Accuracy: 0.848
+Precision: 0.831
+Recall: 0.618
+f1: 0.725
+
+VUA All POS evaluation on test set
+TP = 2251, FP = 520, FN = 1731, TN = 17694
+Accuracy: 0.899
+Precision: 0.812
+Recall: 0.565
+f1: 0.689
+
+TOEFL Verb evaluation on test set
+TP = 186, FP = 74, FN = 118, TN = 1923
+Accuracy: 0.917
+Precision: 0.715
+Recall: 0.612
+f1: 0.664
+
+TOEFL All POS evaluation on test set
+TP = 384, FP = 139, FN = 277, TN = 8214
+Accuracy: 0.954
+Precision: 0.734
+Recall: 0.581
+f1: 0.658
