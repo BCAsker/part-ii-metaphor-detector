@@ -40,7 +40,10 @@ def train_models(dataset_name, df_train, df_folds, models_to_train, experiment_n
         model.train()
         optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-        train_dataset = torch.utils.data.ConcatDataset(datasets[0:i] + datasets[i+1:num_folds])
+        if num_folds == 1:
+            train_dataset = datasets[i]
+        else:
+            train_dataset = torch.utils.data.ConcatDataset(datasets[0:i] + datasets[i+1:num_folds])
         eval_dataset = datasets[i]
 
         for epoch in range(1, epochs + 1):
