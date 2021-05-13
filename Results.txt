@@ -118,4 +118,276 @@ Recall: 0.719
 f1: 0.685
 
 
+EXPERIMENT 6 - minus FPGOS
+VUA Verb evaluation on test set
+TP = 1347, FP = 414, FN = 414, TN = 3698
+Accuracy: 0.859
+Precision: 0.765
+Recall: 0.765
+f1: 0.765
+
+VUA All POS evaluation on test set
+TP = 2858, FP = 1034, FN = 1124, TN = 17180
+Accuracy: 0.903
+Precision: 0.734
+Recall: 0.718
+f1: 0.726
+
+TOEFL Verb evaluation on test set
+TP = 232, FP = 125, FN = 72, TN = 1872
+Accuracy: 0.914
+Precision: 0.650
+Recall: 0.763
+f1: 0.707
+
+TOEFL All POS evaluation on test set
+TP = 476, FP = 251, FN = 185, TN = 8102
+Accuracy: 0.952
+Precision: 0.655
+Recall: 0.720
+f1: 0.687
+
+
+EXPERIMENT 7 - minus POS
+VUA Verb evaluation on test set
+TP = 1391, FP = 527, FN = 370, TN = 3585
+Accuracy: 0.847
+Precision: 0.725
+Recall: 0.790
+f1: 0.758
+
+VUA All POS evaluation on test set
+TP = 2919, FP = 1247, FN = 1063, TN = 16967
+Accuracy: 0.896
+Precision: 0.701
+Recall: 0.733
+f1: 0.717
+
+TOEFL Verb evaluation on test set
+TP = 233, FP = 128, FN = 71, TN = 1869
+Accuracy: 0.914
+Precision: 0.645
+Recall: 0.766
+f1: 0.706
+
+TOEFL All POS evaluation on test set
+TP = 483, FP = 268, FN = 178, TN = 8085
+Accuracy: 0.951
+Precision: 0.643
+Recall: 0.731
+f1: 0.687
+
+
+EXPERIMENT 8 - Spell Correction
+VUA Verb evaluation on test set
+TP = 1344, FP = 428, FN = 417, TN = 3684
+Accuracy: 0.856
+Precision: 0.758
+Recall: 0.763
+f1: 0.761
+
+VUA All POS evaluation on test set
+TP = 2852, FP = 1080, FN = 1130, TN = 17134
+Accuracy: 0.900
+Precision: 0.725
+Recall: 0.716
+f1: 0.721
+
+TOEFL Verb evaluation on test set
+TP = 242, FP = 120, FN = 62, TN = 1877
+Accuracy: 0.921
+Precision: 0.669
+Recall: 0.796
+f1: 0.732
+
+TOEFL All POS evaluation on test set
+TP = 499, FP = 255, FN = 162, TN = 8098
+Accuracy: 0.954
+Precision: 0.662
+Recall: 0.755
+f1: 0.708
+
+
+EXPERIMENT 9 - Just Global Context
+VUA Verb evaluation on test set
+TP = 1373, FP = 496, FN = 388, TN = 3616
+Accuracy: 0.849
+Precision: 0.735
+Recall: 0.780
+f1: 0.757
+
+VUA All POS evaluation on test set
+TP = 2865, FP = 1119, FN = 1117, TN = 17095
+Accuracy: 0.899
+Precision: 0.719
+Recall: 0.719
+f1: 0.719
+
+TOEFL Verb evaluation on test set
+TP = 232, FP = 132, FN = 72, TN = 1865
+Accuracy: 0.911
+Precision: 0.637
+Recall: 0.763
+f1: 0.700
+
+TOEFL All POS evaluation on test set
+TP = 478, FP = 261, FN = 183, TN = 8092
+Accuracy: 0.951
+Precision: 0.647
+Recall: 0.723
+f1: 0.685
+
+
+EXPERIMENT 10 - NO ENSEMBLE
+VUA Verb evaluation on test set
+TP = 1089, FP = 221, FN = 672, TN = 3891
+Accuracy: 0.848
+Precision: 0.831
+Recall: 0.618
+f1: 0.725
+
+VUA All POS evaluation on test set
+TP = 2251, FP = 520, FN = 1731, TN = 17694
+Accuracy: 0.899
+Precision: 0.812
+Recall: 0.565
+f1: 0.689
+
+TOEFL Verb evaluation on test set
+TP = 186, FP = 74, FN = 118, TN = 1923
+Accuracy: 0.917
+Precision: 0.715
+Recall: 0.612
+f1: 0.664
+
+TOEFL All POS evaluation on test set
+TP = 384, FP = 139, FN = 277, TN = 8214
+Accuracy: 0.954
+Precision: 0.734
+Recall: 0.581
+f1: 0.658
+
+
+EXPERIMENT 11_0 - Variance
+VUA Verb evaluation on test set
+TP = 1387, FP = 471, FN = 374, TN = 3641
+Accuracy: 0.856
+Precision: 0.747
+Recall: 0.788
+f1: 0.767
+
+VUA All POS evaluation on test set
+TP = 2936, FP = 1180, FN = 1046, TN = 17034
+Accuracy: 0.900
+Precision: 0.713
+Recall: 0.737
+f1: 0.725
+
+TOEFL Verb evaluation on test set
+TP = 225, FP = 109, FN = 79, TN = 1888
+Accuracy: 0.918
+Precision: 0.674
+Recall: 0.740
+f1: 0.707
+
+TOEFL All POS evaluation on test set
+Model number: 9, Batch: 500/564, Time elapsed: 3295.5s
+TP = 468, FP = 237, FN = 193, TN = 8116
+Accuracy: 0.952
+Precision: 0.664
+Recall: 0.708
+f1: 0.686
+
+
+EXPERIMENT 11_11 - Variance
+VUA Verb evaluation on test set
+TP = 1378, FP = 460, FN = 383, TN = 3652
+Accuracy: 0.856
+Precision: 0.750
+Recall: 0.783
+f1: 0.766
+
+VUA All POS evaluation on test set
+TP = 2907, FP = 1097, FN = 1075, TN = 17117
+Accuracy: 0.902
+Precision: 0.726
+Recall: 0.730
+f1: 0.728
+
+TOEFL Verb evaluation on test set
+TP = 246, FP = 141, FN = 58, TN = 1856
+Accuracy: 0.914
+Precision: 0.636
+Recall: 0.809
+f1: 0.722
+
+TOEFL All POS evaluation on test set
+Model number: 9, Batch: 500/564, Time elapsed: 3349.6s
+TP = 503, FP = 292, FN = 158, TN = 8061
+Accuracy: 0.950
+Precision: 0.633
+Recall: 0.761
+f1: 0.697
+
+
+EXPERIMENT 11_2 - Variance
+VUA Verb evaluation on test set
+TP = 1407, FP = 518, FN = 354, TN = 3594
+Accuracy: 0.852
+Precision: 0.731
+Recall: 0.799
+f1: 0.765
+
+VUA All POS evaluation on test set
+TP = 2967, FP = 1226, FN = 1015, TN = 16988
+Accuracy: 0.899
+Precision: 0.708
+Recall: 0.745
+f1: 0.726
+
+TOEFL Verb evaluation on test set
+TP = 245, FP = 146, FN = 59, TN = 1851
+Accuracy: 0.911
+Precision: 0.627
+Recall: 0.806
+f1: 0.716
+
+TOEFL All POS evaluation on test set
+Model number: 9, Batch: 500/564, Time elapsed: 3367.8s
+TP = 511, FP = 315, FN = 150, TN = 8038
+Accuracy: 0.948
+Precision: 0.619
+Recall: 0.773
+f1: 0.696
+
+
+EXPERIMENT 11_3 - Variance
+VUA Verb evaluation on test set
+TP = 1415, FP = 512, FN = 346, TN = 3600
+Accuracy: 0.854
+Precision: 0.734
+Recall: 0.804
+f1: 0.769
+
+VUA All POS evaluation on test set
+TP = 2960, FP = 1204, FN = 1022, TN = 17010
+Accuracy: 0.900
+Precision: 0.711
+Recall: 0.743
+f1: 0.727
+
+TOEFL Verb evaluation on test set
+TP = 242, FP = 155, FN = 62, TN = 1842
+Accuracy: 0.906
+Precision: 0.610
+Recall: 0.796
+f1: 0.703
+
+TOEFL All POS evaluation on test set
+Model number: 9, Batch: 500/564, Time elapsed: 3344.3s
+TP = 500, FP = 308, FN = 161, TN = 8045
+Accuracy: 0.948
+Precision: 0.619
+Recall: 0.756
+f1: 0.688
 
